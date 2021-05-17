@@ -11,6 +11,7 @@ function AccountsTable(props) {
                         <th> Collateral * Factor (Eth) </th>
                         <th> Borrow (Eth) </th>
                         <th> Tokens </th>
+                        <th> Profit w/o TxFees </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -25,8 +26,8 @@ function AccountsTable(props) {
                                     <td>
                                         {
                                             account.tokens.map((token) => {
-                                                let supply = (token.supply_balance_underlying.value * 1).toFixed(6);
-                                                let borrow = (token.borrow_balance_underlying.value * 1).toFixed(6);
+                                                let supply = token.supply_balance_underlying.value * 1;
+                                                let borrow = token.borrow_balance_underlying.value * 1;
                                                 return (
                                                     <div>
                                                         <span style={{fontWeight: 'bold'}}> {token.symbol} </span>
@@ -36,6 +37,7 @@ function AccountsTable(props) {
                                             })
                                         }
                                     </td>
+                                    <td> {account.profitNoTxFees} </td>
                                 </tr>
                             );
                         }

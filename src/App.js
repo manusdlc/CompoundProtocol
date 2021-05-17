@@ -1,28 +1,61 @@
 import React, { Component } from 'react';
 import AccountsTable from './components/AccountsTable/index.js';
+import TokensTable from './components/TokensTable/index.js';
+import Comptroller from './CompoundProtocol/comptroller.js'
 import axios from 'axios';
+import Web3 from 'web3';
+
+const web3 = new Web3('http://192.168.1.2:8545');
+const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
+
+
+//await troll.methods.closeFactorMantissa().call() / 1e18;
+//await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
+
+
+function parsecTokenDataResponse(json, app) {
+  let cTokensList = [];
+
+  json.cToken.forEach(cToken => {
+    let newcToken = {
+      address: cToken.token_address,
+      symbol: cToken.symbol,
+      collateralFactor: cToken.collateral_factor.value,
+      underlyingPriceInEth: cToken.underlying_price.value
+    };
+
+    cTokensList.push(newcToken);
+  });
+
+  app.setState({
+    cTokens: cTokensList
+  })
+}
 
 function parseAccountDataResponse(json, app) {
-  let newAccounts = [];
+  let accountsList = [];
 
   json.accounts.forEach(account => {
     let newAccount = {
       address: account.address,
-      health: (account.health.value * 1).toFixed(6),
-      borrowValueInEth: (account.total_borrow_value_in_eth.value * 1).toFixed(6),
-      collateralTimesFactorValueInEth: (account.total_collateral_value_in_eth.value * 1).toFixed(6),
-      tokens: account.tokens
+      health: account.health.value * 1,
+      borrowValueInEth: account.total_borrow_value_in_eth.value * 1,
+      collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value * 1,
+      tokens: account.tokens,
+      profitNoTxFees: (account.total_borrow_value_in_eth.value)
     }
 
-    newAccounts.push(newAccount);
+    accountsList.push(newAccount);
   });
 
   app.setState({
-    accounts: newAccounts
+    accounts: accountsList
   })
 }
 
+
 function Loader(props) {
+  props.app.requestTokenList();
   props.app.refreshAccountsList();
   return (<div />);
 }
@@ -32,8 +65,26 @@ class App extends Component {
     super();
 
     this.state = {
-      accounts: []
+      accounts: [],
+      cTokens: []
     };
+  }
+
+  requestTokenList() {
+    let URL = 'https://api.compound.finance/api/v2/ctoken';
+
+    axios({
+      method: 'POST',
+      url: URL,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).then(response => {
+      parsecTokenDataResponse(response.data, this);
+    }).catch(error => {
+      console.error(error);
+    });
   }
 
   refreshAccountsList() {
@@ -43,7 +94,7 @@ class App extends Component {
       method: 'POST',
       url: URL,
       headers: {
-        Accept: 'application/json',
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
 
@@ -55,10 +106,9 @@ class App extends Component {
 
     }).then(response => {
       parseAccountDataResponse(response.data, this);
-    })
-      .catch(error => {
-        console.error(error)
-      });
+    }).catch(error => {
+      console.error(error);
+    });
   }
 
   componentDidMount() { }
@@ -70,11 +120,22 @@ class App extends Component {
           <Loader app={this}> Loading ... </Loader>
         </div>
       );
-    } else {
+    } 
+    
+    if (false) {
       return (
         <div className='App'>
-          <button style={{float: 'right'}} onClick={this.refreshAccountsList}> Refresh </button>
+          <button style={{ float: 'right' }} onClick={this.refreshAccountsList}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} />
+        </div>
+      );
+    }
+
+    if (true) {
+      return (
+        <div className='App'>
+          <button style={{ float: 'right' }} onClick={this.requestTokenList}> Refresh </button>
+          <TokensTable cTokens={this.state.cTokens} />
         </div>
       );
     }

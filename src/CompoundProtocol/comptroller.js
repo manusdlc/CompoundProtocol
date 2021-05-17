@@ -1,5 +1,6 @@
-export default {
-    address: 0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b,
+const Comptroller =
+{
+    address: '0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b',
     abi: [
         {
             "constant": true,
@@ -2328,3 +2329,4 @@ export default {
         }
     ]
 }
+export default Comptroller
