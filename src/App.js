@@ -8,11 +8,6 @@ import Web3 from 'web3';
 const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 
-
-//await troll.methods.closeFactorMantissa().call() / 1e18;
-//await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
-
-
 function parsecTokenDataResponse(json, app) {
   let cTokensList = [];
 
@@ -42,7 +37,8 @@ function parseAccountDataResponse(json, app) {
       borrowValueInEth: account.total_borrow_value_in_eth.value * 1,
       collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value * 1,
       tokens: account.tokens,
-      profitNoTxFees: (account.total_borrow_value_in_eth.value)
+      profitNoTxFees: (account.total_borrow_value_in_eth.value * app.closeFactor * app.incentive)
+        - (account.total_borrow_value_in_eth.value * app.closeFactor)
     }
 
     accountsList.push(newAccount);
@@ -55,6 +51,8 @@ function parseAccountDataResponse(json, app) {
 
 
 function Loader(props) {
+  props.app.refreshCloseFactor();
+  props.app.refreshIncentive();
   props.app.requestTokenList();
   props.app.refreshAccountsList();
   return (<div />);
@@ -64,8 +62,8 @@ class App extends Component {
   constructor() {
     super();
 
-    let closeFactor = this.setCloseFactor().value;
-    console.log(closeFactor);
+    let closeFactor;
+    let incentive;
 
     this.state = {
       accounts: [],
@@ -73,12 +71,12 @@ class App extends Component {
     };
   }
 
-  async setCloseFactor() {
-    try {
-      return await troll.methods.closeFactorMantissa().call() / 1e18;
-    } catch (error) {
-      console.error(error);
-    }
+  async refreshCloseFactor() {
+    this.closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
+  }
+
+  async refreshIncentive() {
+    this.incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
   }
 
   requestTokenList() {
@@ -91,11 +89,13 @@ class App extends Component {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
-    }).then(response => {
-      parsecTokenDataResponse(response.data, this);
-    }).catch(error => {
-      console.error(error);
-    });
+    })
+      .then(response => {
+        parsecTokenDataResponse(response.data, this);
+      })
+      .catch(error => {
+        console.error(error);
+      });
   }
 
   refreshAccountsList() {
