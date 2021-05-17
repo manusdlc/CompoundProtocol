@@ -11,7 +11,6 @@ function AccountsTable(props) {
                         <th> Collateral * Factor (Eth) </th>
                         <th> Borrow (Eth) </th>
                         <th> Tokens </th>
-                        <th> Profit w/o TxFees </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -20,24 +19,24 @@ function AccountsTable(props) {
                             return (
                                 <tr key={account.address}>
                                     <td> {account.address} </td>
-                                    <td> {account.health} </td>
-                                    <td> {account.collateralTimesFactorValueInEth} </td>
-                                    <td> {account.borrowValueInEth} </td>
+                                    <td> {(account.health * 1).toFixed(6)} </td>
+                                    <td> {(account.collateralTimesFactorValueInEth * 1).toFixed(6)} </td>
+                                    <td> {(account.borrowValueInEth * 1).toFixed(6)} </td>
                                     <td>
                                         {
                                             account.tokens.map((token) => {
-                                                let supply = token.supply_balance_underlying.value * 1;
-                                                let borrow = token.borrow_balance_underlying.value * 1;
                                                 return (
                                                     <div key={token.address}>
-                                                        <span style={{fontWeight: 'bold'}}> {token.symbol} </span>
-                                                        <span text-alignment='center'> Sup: {supply} {"     "} Bor: {borrow} Pro: {supply * 0.5 * 0.08} </span>
+                                                        <span style={{ fontWeight: 'bold' }}> {token.symbol} </span>
+                                                        <br></br>
+                                                        <span text-alignment='center'> Sup: {(token.supply * 1).toFixed(6)} </span>
+                                                        <span text-alignment='center'> Bor: {(token.borrow * 1).toFixed(6)} </span>
+                                                        <span text-alignment='center'> Pro: {(token.profit * 1).toFixed(6)} </span>
                                                     </div>
                                                 );
                                             })
                                         }
                                     </td>
-                                    <td> {account.profitNoTxFees} </td>
                                 </tr>
                             );
                         }

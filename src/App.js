@@ -9,10 +9,6 @@ import Web3 from 'web3';
 const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 
-function computeProfitForToken(address, supply, app) {
-  return supply * app.closeFactor;
-}
-
 function parsecTokenDataResponse(json, app) {
   let cTokensList = [];
 
@@ -38,13 +34,18 @@ function parseAccountDataResponse(json, app) {
   json.accounts.forEach(account => {
     let newAccount = {
       address: account.address,
-      health: account.health.value * 1,
-      borrowValueInEth: account.total_borrow_value_in_eth.value * 1,
-      collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value * 1,
-      tokens: account.tokens,
-      profitPerToken: account.tokens.map(token => computeProfitForToken(token.address, token.supply_balance_underlying.value, app)),
-      profitNoTxFees: (account.total_borrow_value_in_eth.value * app.closeFactor * app.incentive)
-        - (account.total_borrow_value_in_eth.value * app.closeFactor)
+      health: account.health.value,
+      borrowValueInEth: account.total_borrow_value_in_eth.value,
+      collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value,
+      tokens: account.tokens.map((token) => {
+        return {
+          symbol: token.symbol,
+          supply: token.supply_balance_underlying.value,
+          borrow: token.borrow_balance_underlying.value,
+          profit: token.supply_balance_underlying.value * app.closeFactor * (app.incentive - 1)
+        }
+      }
+      )
     }
 
     accountsList.push(newAccount);
@@ -59,6 +60,7 @@ function parseAccountDataResponse(json, app) {
 function Loader(props) {
   props.app.refreshCloseFactor();
   props.app.refreshIncentive();
+  props.app.refreshGasPrice();
   props.app.requestTokenList();
   props.app.refreshAccountsList();
   return (<div />);
@@ -70,6 +72,7 @@ class App extends Component {
 
     let closeFactor;
     let incentive;
+    let gasPrice;
 
     this.state = {
       accounts: [],
@@ -79,12 +82,38 @@ class App extends Component {
 
   async refreshCloseFactor() {
     this.closeFactor = 0.5;
-    //this.closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
+
+    /*
+    try {
+      this.closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
+    } catch (error) {
+      console.error(error);
+    }
+    */
   }
 
   async refreshIncentive() {
     this.incentive = 1.08;
-    //this.incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
+
+    /*
+    try {
+      this.incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
+    } catch (error) {
+      console.error(error);
+    }
+    */
+  }
+
+  async refreshGasPrice() {
+    this.gasPrice = 182;
+
+    /*
+    try {
+      gasPrice = await web3.eth.getGasPrice();
+    } catch (error) {
+      console.error(error);
+    }
+    */
   }
 
   requestTokenList() {
@@ -118,8 +147,8 @@ class App extends Component {
       },
 
       data: {
-        max_health: { value: '1.0' },
-        min_borrow_value_in_eth: { value: '0.0' },
+        max_health: { value: '2.0' },
+        min_borrow_value_in_eth: { value: '0.002' },
         page_size: 100,
       }
 
@@ -144,6 +173,8 @@ class App extends Component {
     if (true) {
       return (
         <div className='App'>
+          <h3> Liquidation Fee  </h3>
+          <span> {this.gasPrice * GasCosts.liquidateBorrow} gwei </span>
           <button style={{ float: 'right' }} onClick={this.refreshAccountsList}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} />
         </div>
