@@ -1,12 +1,17 @@
 import React, { Component } from 'react';
 import AccountsTable from './components/AccountsTable/index.js';
 import TokensTable from './components/TokensTable/index.js';
-import Comptroller from './CompoundProtocol/comptroller.js'
+import Comptroller from './CompoundProtocol/Comptroller.js';
+import GasCosts from './CompoundProtocol/GasCosts.js';
 import axios from 'axios';
 import Web3 from 'web3';
 
 const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
+
+function computeProfitForToken(address, supply, app) {
+  return supply * app.closeFactor;
+}
 
 function parsecTokenDataResponse(json, app) {
   let cTokensList = [];
@@ -37,6 +42,7 @@ function parseAccountDataResponse(json, app) {
       borrowValueInEth: account.total_borrow_value_in_eth.value * 1,
       collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value * 1,
       tokens: account.tokens,
+      profitPerToken: account.tokens.map(token => computeProfitForToken(token.address, token.supply_balance_underlying.value, app)),
       profitNoTxFees: (account.total_borrow_value_in_eth.value * app.closeFactor * app.incentive)
         - (account.total_borrow_value_in_eth.value * app.closeFactor)
     }
@@ -72,11 +78,13 @@ class App extends Component {
   }
 
   async refreshCloseFactor() {
-    this.closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
+    this.closeFactor = 0.5;
+    //this.closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
   }
 
   async refreshIncentive() {
-    this.incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
+    this.incentive = 1.08;
+    //this.incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
   }
 
   requestTokenList() {
@@ -110,8 +118,8 @@ class App extends Component {
       },
 
       data: {
-        max_health: { value: '2.0' },
-        min_borrow_value_in_eth: { value: '.002' },
+        max_health: { value: '1.0' },
+        min_borrow_value_in_eth: { value: '0.0' },
         page_size: 100,
       }
 

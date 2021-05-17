@@ -31,7 +31,7 @@ function AccountsTable(props) {
                                                 return (
                                                     <div key={token.address}>
                                                         <span style={{fontWeight: 'bold'}}> {token.symbol} </span>
-                                                        <span text-alignment='center'> Sup: {supply} {"     "} Bor: {borrow} </span>
+                                                        <span text-alignment='center'> Sup: {supply} {"     "} Bor: {borrow} Pro: {supply * 0.5 * 0.08} </span>
                                                     </div>
                                                 );
                                             })
