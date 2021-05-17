@@ -29,7 +29,7 @@ function AccountsTable(props) {
                                                 let supply = token.supply_balance_underlying.value * 1;
                                                 let borrow = token.borrow_balance_underlying.value * 1;
                                                 return (
-                                                    <div>
+                                                    <div key={token.address}>
                                                         <span style={{fontWeight: 'bold'}}> {token.symbol} </span>
                                                         <span text-alignment='center'> Sup: {supply} {"     "} Bor: {borrow} </span>
                                                     </div>

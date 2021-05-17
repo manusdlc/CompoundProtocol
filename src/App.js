@@ -64,10 +64,21 @@ class App extends Component {
   constructor() {
     super();
 
+    let closeFactor = this.setCloseFactor().value;
+    console.log(closeFactor);
+
     this.state = {
       accounts: [],
       cTokens: []
     };
+  }
+
+  async setCloseFactor() {
+    try {
+      return await troll.methods.closeFactorMantissa().call() / 1e18;
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   requestTokenList() {
@@ -120,9 +131,9 @@ class App extends Component {
           <Loader app={this}> Loading ... </Loader>
         </div>
       );
-    } 
-    
-    if (false) {
+    }
+
+    if (true) {
       return (
         <div className='App'>
           <button style={{ float: 'right' }} onClick={this.refreshAccountsList}> Refresh </button>
