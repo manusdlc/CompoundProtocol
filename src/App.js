@@ -32,20 +32,36 @@ function parseAccountDataResponse(json, app) {
   let accountsList = [];
 
   json.accounts.forEach(account => {
+    let tokens = account.tokens.map(token => {
+      return {
+        address: token.address,
+        symbol: token.symbol,
+        supply: token.supply_balance_underlying.value,
+        borrow: token.borrow_balance_underlying.value,
+        profit: token.supply_balance_underlying.value * app.closeFactor * (app.incentive - 1)
+      }
+    }
+    );
+
+    let profitPerTokenInEth = tokens.filter(token => token.supply > 0).map(token => {
+      let underlyingPriceInEth = 1;
+      app.state.cTokens.forEach(cToken => {
+        if (token.address === cToken.address) underlyingPriceInEth = cToken.underlyingPriceInEth;
+      })
+      return {
+        address: token.address,
+        symbol: token.symbol,
+        profitInEth: underlyingPriceInEth * token.profit
+      }
+    });
+
     let newAccount = {
       address: account.address,
       health: account.health.value,
       borrowValueInEth: account.total_borrow_value_in_eth.value,
       collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value,
-      tokens: account.tokens.map((token) => {
-        return {
-          symbol: token.symbol,
-          supply: token.supply_balance_underlying.value,
-          borrow: token.borrow_balance_underlying.value,
-          profit: token.supply_balance_underlying.value * app.closeFactor * (app.incentive - 1)
-        }
-      }
-      )
+      tokens: tokens,
+      profitPerTokenInEth: profitPerTokenInEth
     }
 
     accountsList.push(newAccount);
@@ -81,39 +97,40 @@ class App extends Component {
   }
 
   async refreshCloseFactor() {
-    this.closeFactor = 0.5;
+    //this.closeFactor = 0.5;
 
-    /*
+
     try {
       this.closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
     } catch (error) {
       console.error(error);
     }
-    */
+
   }
 
   async refreshIncentive() {
-    this.incentive = 1.08;
+    //this.incentive = 1.08;
 
-    /*
+
     try {
       this.incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
     } catch (error) {
       console.error(error);
     }
-    */
+
   }
 
   async refreshGasPrice() {
-    this.gasPrice = 182;
+    //this.gasPrice = 182e9;
 
-    /*
+
     try {
-      gasPrice = await web3.eth.getGasPrice();
+      this.gasPrice = await web3.eth.getGasPrice();
+      console.log(this.gasPrice);
     } catch (error) {
       console.error(error);
     }
-    */
+
   }
 
   requestTokenList() {
@@ -159,8 +176,6 @@ class App extends Component {
     });
   }
 
-  componentDidMount() { }
-
   render() {
     if (this.state.accounts.length === 0) {
       return (
@@ -171,10 +186,14 @@ class App extends Component {
     }
 
     if (true) {
+      let liquidationFee = this.gasPrice * GasCosts.liquidateBorrow;
       return (
         <div className='App'>
           <h3> Liquidation Fee  </h3>
-          <span> {this.gasPrice * GasCosts.liquidateBorrow} gwei </span>
+          <span> {liquidationFee} wei, </span>
+          <span> {liquidationFee / 1e9} gwei, </span>
+          <span> {liquidationFee / 1e18} eth, </span>
+          <span> {liquidationFee / 1e18 * 4398} usd </span>
           <button style={{ float: 'right' }} onClick={this.refreshAccountsList}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} />
         </div>
