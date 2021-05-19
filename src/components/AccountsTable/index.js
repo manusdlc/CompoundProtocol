@@ -47,7 +47,7 @@ function AccountsTable(props) {
                                                         <br />
                                                         <span text-alignment='center'> {(token.profitInEth * 1).toFixed(6)} ETH </span>
                                                         <br />
-                                                        <span text-alignment='center'> {(token.profitInEth * 3498).toFixed(6)} USD </span>
+                                                        <span text-alignment='center'> {(token.profitInEth * props.ethToUsd).toFixed(6)} USD </span>
                                                     </div>
                                                 );
                                             })
