@@ -12,6 +12,7 @@ function AccountsTable(props) {
                         <th> Borrow (Eth) </th>
                         <th> Tokens </th>
                         <th> Profit / token (Eth) </th>
+                        <th> Profit / token - TxFee (Eth) </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -48,6 +49,21 @@ function AccountsTable(props) {
                                                         <span text-alignment='center'> {(token.profitInEth * 1).toFixed(6)} ETH </span>
                                                         <br />
                                                         <span text-alignment='center'> {(token.profitInEth * props.ethToUsd).toFixed(6)} USD </span>
+                                                    </div>
+                                                );
+                                            })
+                                        }
+                                    </td>
+                                    <td>
+                                        {
+                                            account.profitPerTokenInEth.map((token) => {
+                                                return (
+                                                    <div key={token.address}>
+                                                        <span style={{ fontWeight: 'bold' }}> {token.symbol} </span>
+                                                        <br />
+                                                        <span text-alignment='center'> {(token.profitMinusTxFees * 1).toFixed(6)} ETH </span>
+                                                        <br />
+                                                        <span text-alignment='center'> {(token.profitMinusTxFees * props.ethToUsd).toFixed(6)} USD </span>
                                                     </div>
                                                 );
                                             })

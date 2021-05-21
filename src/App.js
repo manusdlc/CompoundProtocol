@@ -51,10 +51,13 @@ function parseAccountDataResponse(json, app) {
       let profitInEth = underlyingPriceInEth * token.profit;
       if (profitInEth > maxProfit) maxProfit = profitInEth;
 
+      let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
+
       return {
         address: token.address,
         symbol: token.symbol,
         profitInEth: profitInEth,
+        profitMinusTxFees: profitMinusTxFees
       }
     });
 
@@ -77,12 +80,6 @@ function parseAccountDataResponse(json, app) {
   app.setState({
     accounts: accountsList
   })
-}
-
-
-function Loader(props) {
-  props.app.refreshAccountList();
-  return (<div />);
 }
 
 class App extends Component {
@@ -198,6 +195,8 @@ class App extends Component {
   }
 
   async refreshAccountList() {
+    console.log('Refreshing Account list');
+
     let URL = 'https://api.compound.finance/api/v2/account';
 
     axios({
@@ -223,11 +222,8 @@ class App extends Component {
 
   render() {
     if (this.state.accounts.length === 0) {
-      return (
-        <div>
-          <Loader app={this}> Loading ... </Loader>
-        </div>
-      );
+      this.refreshAccountList();
+      return (<div />);
     }
 
     if (true) {
