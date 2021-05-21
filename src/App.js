@@ -79,20 +79,21 @@ function parseAccountDataResponse(json, app) {
 
 
 function Loader(props) {
+  props.app.refreshEthToUsd();
   props.app.refreshCloseFactor();
   props.app.refreshIncentive();
   props.app.refreshGasPrice();
-  props.app.refreshEthToUsd();
   props.app.refreshTokenList();
   props.app.refreshAccountsList();
   return (<div />);
 }
 
 class App extends Component {
+
+  static ethToUsd;
   static closeFactor;
   static incentive;
   static gasPrice;
-  static ethToUsd;
 
   constructor() {
     super();
@@ -171,7 +172,7 @@ class App extends Component {
       },
 
       data: {
-        max_health: { value: '2.0' },
+        max_health: { value: '1.0' },
         min_borrow_value_in_eth: { value: '0.002' },
         page_size: 100,
       }
@@ -193,7 +194,6 @@ class App extends Component {
     }
 
     if (true) {
-      console.log(this.ethToUsd);
       let liquidationFee = this.gasPrice * GasCosts.liquidateBorrow;
       return (
         <div className='App'>
