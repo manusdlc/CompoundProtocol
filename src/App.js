@@ -13,7 +13,7 @@ const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address
 
 
 function parsecTokenDataResponse(json, app) {
-  let cTokensList = json.cToken.map(cToken => {
+  let ctokenList = json.cToken.map(cToken => {
     return {
       address: cToken.token_address,
       symbol: cToken.symbol,
@@ -23,43 +23,75 @@ function parsecTokenDataResponse(json, app) {
   });
 
   app.setState({
-    cTokens: cTokensList
-  })
+    cTokens: ctokenList
+  });
+}
+
+function getUnderlyingPriceInEth(token, app) {
+  let correspondingToken = app.state.cTokens.find(cToken => cToken.address === token.address);
+
+  console.log(correspondingToken.underlyingPriceInEth)
+  return correspondingToken.underlyingPriceInEth;
+}
+
+function getMaxSupplyAndTokens(tokens, app) {
+  let maxSupplyInEth = 0;
+
+  let tokenList = tokens.map(token => {
+    let underlyingPriceInEth = getUnderlyingPriceInEth(token, app);
+    let supplyInEth = token.supply_balance_underlying * underlyingPriceInEth;
+
+    if (supplyInEth > maxSupplyInEth) maxSupplyInEth = supplyInEth;
+
+    return {
+      address: token.address,
+      symbol: token.symbol,
+      supply: token.supply_balance_underlying.value,
+      borrow: token.borrow_balance_underlying.value,
+      profit: token.supply_balance_underlying.value * app.state.closeFactor * (app.state.incentive - 1)
+    }
+  });
+
+  return {
+    maxSupplyInEth: maxSupplyInEth,
+    tokens: tokenList
+  }
+}
+
+function getMaxProfitAndProfitPerToken(tokens, app) {
+  let maxProfitInEth = 0;
+  let profitPerTokenInEth = tokens.filter(token => token.supply > 0).map(token => {
+    let underlyingPriceInEth = getUnderlyingPriceInEth(token, app);
+    let profitInEth = underlyingPriceInEth * token.profit;
+    let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
+
+    if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
+
+    return {
+      address: token.address,
+      symbol: token.symbol,
+      profitInEth: profitInEth,
+      profitMinusTxFees: profitMinusTxFees
+    }
+  });
+
+  return {
+    maxProfitInEth: maxProfitInEth,
+    profitPerTokenInEth: profitPerTokenInEth
+  }
 }
 
 function parseAccountDataResponse(json, app) {
-  let accountsList = json.accounts.map(account => {
-    let tokens = account.tokens.map(token => {
-      return {
-        address: token.address,
-        symbol: token.symbol,
-        supply: token.supply_balance_underlying.value,
-        borrow: token.borrow_balance_underlying.value,
-        profit: token.supply_balance_underlying.value * app.state.closeFactor * (app.state.incentive - 1)
-      }
-    }
-    );
+console.log('q pesaos');
 
-    let maxProfit = 0;
-    let profitPerTokenInEth = tokens.filter(token => token.supply > 0).map(token => {
-      let underlyingPriceInEth = 0;
+  let accountList = json.accounts.map(account => {
+    let maxSupplyAndTokens = getMaxSupplyAndTokens(account.tokens, app);
+    let maxSupplyInEth = maxSupplyAndTokens.maxSupplyInEth;
+    let tokens = maxSupplyAndTokens.tokens;
 
-      app.state.cTokens.forEach(cToken => {
-        if (token.address === cToken.address) underlyingPriceInEth = cToken.underlyingPriceInEth;
-      })
-
-      let profitInEth = underlyingPriceInEth * token.profit;
-      if (profitInEth > maxProfit) maxProfit = profitInEth;
-
-      let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
-
-      return {
-        address: token.address,
-        symbol: token.symbol,
-        profitInEth: profitInEth,
-        profitMinusTxFees: profitMinusTxFees
-      }
-    });
+    let maxProfitAndProfitPerTokenInEth = getMaxProfitAndProfitPerToken(tokens, app);
+    let maxProfitInEth = maxProfitAndProfitPerTokenInEth.maxProfitInEth;
+    let profitPerTokenInEth = maxProfitAndProfitPerTokenInEth.profitPerTokenInEth;
 
 
     return {
@@ -69,23 +101,25 @@ function parseAccountDataResponse(json, app) {
       collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value,
       tokens: tokens,
       profitPerTokenInEth: profitPerTokenInEth,
-      maxProfit: maxProfit
+      maxProfitInEth: maxProfitInEth
     }
   });
 
-  accountsList.sort((a, b) => {
-    return b.maxProfit - a.maxProfit;
-  })
+  accountList.sort((a, b) => {
+    return b.maxProfitInEth - a.maxProfitInEth;
+  });
 
   app.setState({
-    accounts: accountsList
-  })
+    accounts: accountList
+  });
 }
 
 class App extends Component {
 
   constructor() {
     super();
+
+    this.initialized = false;
 
     this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
     this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
@@ -221,7 +255,8 @@ class App extends Component {
   }
 
   render() {
-    if (this.state.accounts.length === 0) {
+    if (!this.initialized) {
+      this.initialized = true;
       this.refreshAccountList();
       return (<div />);
     }
