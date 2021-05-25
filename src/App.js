@@ -28,44 +28,63 @@ function parsecTokenDataResponse(json, app) {
 }
 
 function getUnderlyingPriceInEth(token, app) {
-  let correspondingToken = app.state.cTokens.find(cToken => cToken.address === token.address);
-
-  console.log(correspondingToken.underlyingPriceInEth)
-  return correspondingToken.underlyingPriceInEth;
+  return app.state.cTokens.find(cToken => cToken.address === token.address).underlyingPriceInEth;
 }
 
-function getMaxSupplyAndTokens(tokens, app) {
+function getTokens(tokens, app) {
   let maxSupplyInEth = 0;
+  let maxBorrowInEth = 0;
 
   let tokenList = tokens.map(token => {
     let underlyingPriceInEth = getUnderlyingPriceInEth(token, app);
-    let supplyInEth = token.supply_balance_underlying * underlyingPriceInEth;
+    let supply = token.supply_balance_underlying.value;
+    let borrow = token.borrow_balance_underlying.value;
 
+    let supplyInEth = supply * underlyingPriceInEth;
+    let borrowInEth = borrow * underlyingPriceInEth;
+
+    console.log('Supp: ' + supply);
+    console.log('Borrow: ' + borrow);
+    console.log('Uderlying Price: ' + underlyingPriceInEth);
+    console.log('Supp: ' + supplyInEth);
+    console.log('Borrow: ' + borrowInEth);
+    console.log('___________________________');
+
+    if (borrowInEth > maxBorrowInEth) maxBorrowInEth = borrowInEth;
     if (supplyInEth > maxSupplyInEth) maxSupplyInEth = supplyInEth;
 
     return {
       address: token.address,
       symbol: token.symbol,
       supply: token.supply_balance_underlying.value,
+      supplyInEth: supplyInEth,
       borrow: token.borrow_balance_underlying.value,
-      profit: token.supply_balance_underlying.value * app.state.closeFactor * (app.state.incentive - 1)
+      borrowInEth: borrowInEth,
+      underlyingPriceInEth: underlyingPriceInEth,
+      profit: token.borrow_balance_underlying.value * app.state.closeFactor * (app.state.incentive - 1)
     }
   });
 
   return {
     maxSupplyInEth: maxSupplyInEth,
+    maxBorrowInEth: maxBorrowInEth,
     tokens: tokenList
   }
 }
 
-function getMaxProfitAndProfitPerToken(tokens, app) {
-  let maxProfitInEth = 0;
-  let profitPerTokenInEth = tokens.filter(token => token.supply > 0).map(token => {
-    let underlyingPriceInEth = getUnderlyingPriceInEth(token, app);
-    let profitInEth = underlyingPriceInEth * token.profit;
-    let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
 
+function getProfitPerToken(tokens, app, maxSupplyInEth, maxBorrowInEth) {
+  let maxProfitInEth = 0;
+
+  let profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
+    let liquidableAmount = token.supplyInEth * app.state.closeFactor;
+
+    while (liquidableAmount > maxSupplyInEth) liquidableAmount -= 0.0001;
+
+    let profitInEth = liquidableAmount * (app.state.incentive - 1);
     if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
+
+    let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
 
     return {
       address: token.address,
@@ -82,16 +101,15 @@ function getMaxProfitAndProfitPerToken(tokens, app) {
 }
 
 function parseAccountDataResponse(json, app) {
-console.log('q pesaos');
-
   let accountList = json.accounts.map(account => {
-    let maxSupplyAndTokens = getMaxSupplyAndTokens(account.tokens, app);
-    let maxSupplyInEth = maxSupplyAndTokens.maxSupplyInEth;
-    let tokens = maxSupplyAndTokens.tokens;
+    let maxSupplyAndBorrow = getTokens(account.tokens, app);
+    let maxSupplyInEth = maxSupplyAndBorrow.maxSupplyInEth;
+    let maxBorrowInEth = maxSupplyAndBorrow.maxBorrowInEth;
+    let tokens = maxSupplyAndBorrow.tokens;
 
-    let maxProfitAndProfitPerTokenInEth = getMaxProfitAndProfitPerToken(tokens, app);
-    let maxProfitInEth = maxProfitAndProfitPerTokenInEth.maxProfitInEth;
-    let profitPerTokenInEth = maxProfitAndProfitPerTokenInEth.profitPerTokenInEth;
+    let profitPerToken = getProfitPerToken(tokens, app, maxSupplyInEth, maxBorrowInEth);
+    let maxProfitInEth = profitPerToken.maxProfitInEth;
+    let profitPerTokenInEth = profitPerToken.profitPerTokenInEth;
 
 
     return {
@@ -115,18 +133,10 @@ console.log('q pesaos');
 }
 
 class App extends Component {
-
   constructor() {
     super();
 
     this.initialized = false;
-
-    this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
-    this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
-    this.refreshIncentive = this.refreshIncentive.bind(this);
-    this.refreshGasPrice = this.refreshGasPrice.bind(this);
-    this.refreshAccountList = this.refreshAccountList.bind(this);
-    this.refreshTokenList = this.refreshTokenList.bind(this);
 
     this.state = {
       ethToUsd: '',
@@ -136,6 +146,13 @@ class App extends Component {
       accounts: [],
       cTokens: []
     };
+
+    this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
+    this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
+    this.refreshIncentive = this.refreshIncentive.bind(this);
+    this.refreshGasPrice = this.refreshGasPrice.bind(this);
+    this.refreshAccountList = this.refreshAccountList.bind(this);
+    this.refreshTokenList = this.refreshTokenList.bind(this);
   }
 
   componentDidMount() {
@@ -143,7 +160,6 @@ class App extends Component {
     this.refreshCloseFactor();
     this.refreshIncentive();
     this.refreshGasPrice();
-    this.refreshTokenList();
   }
 
   async refreshEthToUsd() {
@@ -229,7 +245,7 @@ class App extends Component {
   }
 
   async refreshAccountList() {
-    console.log('Refreshing Account list');
+    console.log('Refreshing Account List');
 
     let URL = 'https://api.compound.finance/api/v2/account';
 
@@ -244,7 +260,7 @@ class App extends Component {
       data: {
         max_health: { value: '1.0' },
         min_borrow_value_in_eth: { value: '0.002' },
-        page_size: 100,
+        page_size: 100
       }
 
     }).then(response => {
@@ -257,6 +273,7 @@ class App extends Component {
   render() {
     if (!this.initialized) {
       this.initialized = true;
+      this.refreshTokenList();
       this.refreshAccountList();
       return (<div />);
     }

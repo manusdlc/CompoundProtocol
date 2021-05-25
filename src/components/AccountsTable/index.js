@@ -34,6 +34,9 @@ function AccountsTable(props) {
                                                         <span text-alignment='center'> Sup: {(token.supply * 1).toFixed(6)} </span>
                                                         <span text-alignment='center'> Bor: {(token.borrow * 1).toFixed(6)} </span>
                                                         <span text-alignment='center'> Pro: {(token.profit * 1).toFixed(6)} </span>
+                                                        <br />
+                                                        <span text-alignment='center'> Sup: {(token.supplyInEth * 1).toFixed(6)} </span>
+                                                        <span text-alignment='center'> Bor: {(token.borrowInEth * 1).toFixed(6)} </span>
                                                     </div>
                                                 );
                                             })
