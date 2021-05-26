@@ -11,7 +11,6 @@ const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
-
 function parsecTokenDataResponse(json, app) {
   let ctokenList = json.cToken.map(cToken => {
     return {
@@ -56,9 +55,9 @@ function getTokens(tokens, app) {
     return {
       address: token.address,
       symbol: token.symbol,
-      supply: token.supply_balance_underlying.value,
+      supply: supply,
       supplyInEth: supplyInEth,
-      borrow: token.borrow_balance_underlying.value,
+      borrow: borrow,
       borrowInEth: borrowInEth,
       underlyingPriceInEth: underlyingPriceInEth,
       profit: token.borrow_balance_underlying.value * app.state.closeFactor * (app.state.incentive - 1)
@@ -77,11 +76,11 @@ function getProfitPerToken(tokens, app, maxSupplyInEth, maxBorrowInEth) {
   let maxProfitInEth = 0;
 
   let profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
-    let liquidableAmount = token.supplyInEth * app.state.closeFactor;
+    let liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
 
-    while (liquidableAmount > maxSupplyInEth) liquidableAmount -= 0.0001;
+    while (liquidableAmountInEth > maxSupplyInEth) liquidableAmountInEth -= 0.0001;
 
-    let profitInEth = liquidableAmount * (app.state.incentive - 1);
+    let profitInEth = liquidableAmountInEth * (app.state.incentive - 1);
     if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
 
     let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
@@ -119,6 +118,7 @@ function parseAccountDataResponse(json, app) {
       collateralTimesFactorValueInEth: account.total_collateral_value_in_eth.value,
       tokens: tokens,
       profitPerTokenInEth: profitPerTokenInEth,
+      maxSupplyInEth: maxSupplyInEth,
       maxProfitInEth: maxProfitInEth
     }
   });
