@@ -1,6 +1,6 @@
 const GasCosts = {
-    minting: 150000,
-    mintingcDai: 300000,
+    mint: 150000,
+    mintcDai: 300000,
     redeem: 250000,
     transfer: 250000,
     borrow: 300000,

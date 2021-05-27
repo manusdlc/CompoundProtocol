@@ -1,17 +1,43 @@
-//function liquidateBorrow(address borrower, uint amount, address collateral) returns (uint)
+//function liquidateborrowedAddressw(address borrowedAddresswer, uint amount, address collateral) returns (uint)
 
 
 //DESTRUCTURING
+
+function getcTokenContract(borrowedAddress) {
+
+}
 
 function getMostProfiteable(accountList) {
     return accountList[0];
 }
 
-function getMaxCollateralAddress(account) {
+function getCollaterals(account) {
+    return account.tokens.filter(token => token.supply > 0).map(token => {
+        return {
+            address: token.address,
+            supply: token.supply,
+            supplyInEth: token.supplyInEth,
+            underlyingPriceInEth: token.underlyingPriceInEth
+        };
+    });
+}
+
+function getborrowedAddressws(account) {
+    return account.tokens.filter(token => token.borrowedAddressw > 0).map(token => {
+        return {
+            address: token.address,
+            borrowedAddressw: token.borrowedAddressw,
+            borrowedAddresswInEth: token.borrowedAddresswInEth,
+            underlyingPriceInEth: token.underlyingPriceInEth
+        }
+    });
+}
+
+function getMaxCollateral(account) {
     let maxSupplyInEth = 0;
     let maxSupply = 0;
     let address = '';
-    
+
     account.tokens.forEach(token => {
         if (token.maxSupplyInEth > maxSupplyInEth) {
             maxSupplyInEth = token.maxSupplyInEth;
@@ -22,26 +48,24 @@ function getMaxCollateralAddress(account) {
 
     return {
         address: address,
-        maxSupplyInEth: maxSupplyInEth,
-        maxSupply: maxSupply
+        maxSupply: maxSupply,
+        maxSupplyInEth: maxSupplyInEth
     };
 }
 
-function getAmountAndCollateralAddress(account, closeFactor, incentive) {
-    let maxSupplyAndCollateralAddress = getMaxCollateralAddress(account);
-    let maxSupplyInEth = maxSupplyAndCollateralAddress.maxSupplyInEth;
-    let collateralAddress = maxSupplyAndCollateralAddress.collateralAddress;
+function getAmountAndCollateral(account, closeFactor, incentive) {
+    let { suppliedAddress, maxSupply, maxSupplyInEth } = getMaxCollateral(account);
 
-    let cTokenAdress = '';
-    let maxBorrowInEth = 0;
+    let borrowedAddress = '';
     let maxBorrow = 0;
+    let maxBorrowInEth = 0;
     let underlyingPriceInEth = 0;
-    
+
     account.tokens.forEach(token => {
         if (token.borrowInEth > maxBorrowInEth) {
-            cTokenAdress = token.address;
-            maxBorrowInEth = token.borrowInEth;
+            borrowedAddress = token.address;
             maxBorrow = token.borrow;
+            maxBorrowInEth = token.borrowInEth;
             underlyingPriceInEth = token.underlyingPriceInEth;
         }
     });
@@ -52,38 +76,25 @@ function getAmountAndCollateralAddress(account, closeFactor, incentive) {
     let maxLiquidableAmount = maxLiquidableAmountInEth / underlyingPriceInEth;
 
     return {
-        cTokenAdress: cTokenAdress,
+        borrowedAddress: borrowedAddress,
         amount: maxLiquidableAmount,
-        collateralAddress: collateralAddress
+        suppliedAddress: suppliedAddress
     };
 }
 
 function getLiquidationDetails(account, closeFactor, incentive) {
-    let amountAndCollateralAddress = getAmountAndCollateralAddress(account, closeFactor, incentive);
-
-    let cTokenAddress = amountAndCollateralAddress.cTokenAdress;
-    let amount = amountAndCollateralAddress.amount;
-    let collateralAddress = amountAndCollateralAddress.collateralAddress;
+    let { borrowedAddress, amount, suppliedAddress } = getAmountAndCollateral(account, closeFactor, incentive);
 
     return {
-        borrowerAddress: account.address,
-        cTokenAddress: cTokenAddress,
+        borrower: account.address,
+        borrowedAddress: borrowedAddress,
         amount: amount,
-        collateralAddress: collateralAddress
+        suppliedAddress: suppliedAddress
     };
 }
 
-function getcTokenContract(cTokenAdress) {
-
-}
-
 async function liquidateAccount(account, closeFactor, incentive) {
-    let liquidationDetails = getLiquidationDetails(account, closeFactor, incentive);
+    let { borrower, borrowedAddress, amount, suppliedAddress } = getLiquidationDetails(account, closeFactor, incentive);
 
-    let cTokenAdress = liquidationDetails.cTokenAddress;
-
-    const cTokenContract = getcTokenContract(cTokenAdress);
-
-    let borrowerAdress = liquidationDetails.borrowerAddress;
-    let amount 
+    const borrowedContract = getcTokenContract(borrowedAddress);
 }
