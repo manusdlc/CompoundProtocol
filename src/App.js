@@ -42,13 +42,6 @@ function getTokens(tokens, app) {
     let supplyInEth = supply * underlyingPriceInEth;
     let borrowInEth = borrow * underlyingPriceInEth;
 
-    console.log('Supp: ' + supply);
-    console.log('Borrow: ' + borrow);
-    console.log('Uderlying Price: ' + underlyingPriceInEth);
-    console.log('Supp: ' + supplyInEth);
-    console.log('Borrow: ' + borrowInEth);
-    console.log('___________________________');
-
     if (borrowInEth > maxBorrowInEth) maxBorrowInEth = borrowInEth;
     if (supplyInEth > maxSupplyInEth) maxSupplyInEth = supplyInEth;
 
@@ -66,13 +59,12 @@ function getTokens(tokens, app) {
 
   return {
     maxSupplyInEth: maxSupplyInEth,
-    maxBorrowInEth: maxBorrowInEth,
     tokens: tokenList
   }
 }
 
 
-function getProfitPerToken(tokens, app, maxSupplyInEth, maxBorrowInEth) {
+function getProfitPerToken(tokens, app, maxSupplyInEth) {
   let maxProfitInEth = 0;
 
   let profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
@@ -101,14 +93,8 @@ function getProfitPerToken(tokens, app, maxSupplyInEth, maxBorrowInEth) {
 
 function parseAccountDataResponse(json, app) {
   let accountList = json.accounts.map(account => {
-    let maxSupplyAndBorrow = getTokens(account.tokens, app);
-    let maxSupplyInEth = maxSupplyAndBorrow.maxSupplyInEth;
-    let maxBorrowInEth = maxSupplyAndBorrow.maxBorrowInEth;
-    let tokens = maxSupplyAndBorrow.tokens;
-
-    let profitPerToken = getProfitPerToken(tokens, app, maxSupplyInEth, maxBorrowInEth);
-    let maxProfitInEth = profitPerToken.maxProfitInEth;
-    let profitPerTokenInEth = profitPerToken.profitPerTokenInEth;
+    let { maxSupplyInEth, tokens } = getTokens(account.tokens, app);
+    let { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth);
 
 
     return {

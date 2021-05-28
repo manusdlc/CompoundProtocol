@@ -1,11 +1,5 @@
-//function liquidateborrowedAddressw(address borrowedAddresswer, uint amount, address collateral) returns (uint)
-
-
-//DESTRUCTURING
-
-function getcTokenContract(borrowedAddress) {
-
-}
+import cTokens from 'cTokens.js'
+import myAccount from 'myAccount.js'
 
 function getMostProfiteable(accountList) {
     return accountList[0];
@@ -22,12 +16,12 @@ function getCollaterals(account) {
     });
 }
 
-function getborrowedAddressws(account) {
-    return account.tokens.filter(token => token.borrowedAddressw > 0).map(token => {
+function getBorrows(account) {
+    return account.tokens.filter(token => token.borrow > 0).map(token => {
         return {
             address: token.address,
-            borrowedAddressw: token.borrowedAddressw,
-            borrowedAddresswInEth: token.borrowedAddresswInEth,
+            borrow: token.borrow,
+            borrowInEth: token.borrowInEth,
             underlyingPriceInEth: token.underlyingPriceInEth
         }
     });
@@ -86,15 +80,40 @@ function getLiquidationDetails(account, closeFactor, incentive) {
     let { borrowedAddress, amount, suppliedAddress } = getAmountAndCollateral(account, closeFactor, incentive);
 
     return {
-        borrower: account.address,
+        borrowerAddress: account.address,
         borrowedAddress: borrowedAddress,
         amount: amount,
         suppliedAddress: suppliedAddress
     };
 }
 
-async function liquidateAccount(account, closeFactor, incentive) {
-    let { borrower, borrowedAddress, amount, suppliedAddress } = getLiquidationDetails(account, closeFactor, incentive);
+function getcTokenContract(borrowedAddress) {
+    let cToken = cTokens.find(cToken => cToken.address === borrowedAddress);
+    const cTokenContract = new web3.eth.Contract(cToken.abi, cToken.address);
+
+    return cTokenContract;
+}
+
+async function liquidateAccount(account, closeFactor, incentive, gasPrice) {
+    let { borrowerAddress, borrowedAddress, amount, suppliedAddress } = getLiquidationDetails(account, closeFactor, incentive);
 
     const borrowedContract = getcTokenContract(borrowedAddress);
+
+    /* Check if we are liquidating cETH */
+    if (borrowedAddress === '0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5') {
+        amountInWEI = (amount * 1e18).toString();
+
+        const trx = await borrowedContract.methods.liquidateBorrow(borrowerAddress, suppliedAddress).send({
+            from: myAccount.address,
+            value: amountInWEI,
+            gas: 400000,
+            gasPrice: gasPrice
+        });
+    } else {
+        const trx = await borrowedContract.methods.liquidateBorrow(borrowedAddress, amount.toString(), suppliedAddress).send({
+            from: myAccount.address,
+            gas: 400000,
+            gasPrice: gasPrice
+        });
+    }
 }
