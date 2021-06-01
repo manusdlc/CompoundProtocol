@@ -6,6 +6,7 @@ import GasCosts from './CompoundProtocol/GasCosts.js';
 import OpenPriceFeed from './CompoundProtocol/OpenPriceFeed.js';
 import axios from 'axios';
 import Web3 from 'web3';
+import BalanceTable from './components/BalanceTable/index.js';
 
 const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
@@ -135,6 +136,8 @@ class App extends Component {
     this.initialized = false;
 
     this.state = {
+      inspectingAddress: false,
+      addressToInspect: '',
       ethToUsd: '',
       closeFactor: '',
       incentive: '',
@@ -294,6 +297,12 @@ class App extends Component {
       return (<div />);
     }
 
+    if (this.state.inspectingAddress) {
+      return (
+        <BalanceTable app={this} address={this.state.addressToInspect}></BalanceTable>
+      );
+    }
+
     if (true) {
       let liquidationFee = this.state.gasPrices[1] * GasCosts.liquidateBorrow;
       return (
@@ -310,7 +319,7 @@ class App extends Component {
           <span> {liquidationFee / 1e18} ETH, </span>
           <span> {(liquidationFee / 1e18) * this.state.ethToUsd} USD </span>
           <button style={{ float: 'right' }} onClick={this.refreshAccountList}> Refresh </button>
-          <AccountsTable accounts={this.state.accounts} ethToUsd={this.state.ethToUsd} />
+          <AccountsTable accounts={this.state.accounts} app={this} ethToUsd={this.state.ethToUsd} />
         </div>
       );
     }

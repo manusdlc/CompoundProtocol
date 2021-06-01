@@ -1,5 +1,12 @@
 import "./AccountsTable.css";
 
+function InspectAddress(address, app) {
+    app.setState({
+        inspectingAddress: true,
+        addressToInspect: address
+    });
+}
+
 function AccountsTable(props) {
     return (
         <div className="AccountsTable">
@@ -13,6 +20,7 @@ function AccountsTable(props) {
                         <th> Tokens </th>
                         <th> Profit / token (Eth) </th>
                         <th> Profit / token - TxFee (Eth) </th>
+                        <th> Inspection </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,10 +80,17 @@ function AccountsTable(props) {
                                             })
                                         }
                                     </td>
+                                    <td>
+                                        <button
+                                            className="InspectButton"
+                                            onClick={() => InspectAddress(account.address, props.app)}
+                                        >
+                                            Inspect
+                                        </button>
+                                    </td>
                                 </tr>
                             );
-                        }
-                        )
+                        })
                     }
                 </tbody>
             </table>
