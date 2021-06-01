@@ -11,8 +11,18 @@ const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
+function parseGasPricesResponse(json, app) {
+  console.log("Safe: " + json.data.result.SafeGasPrice);
+  console.log("Propose: " + json.data.result.ProposeGasPrice);
+  console.log("Fast: " + json.data.result.FastGasPrice);
+
+  app.setState({
+    gasPrices: [json.data.result.SafeGasPrice * 1e9, json.data.result.ProposeGasPrice * 1e9, json.data.result.FastGasPrice * 1e9]
+  });
+}
+
 function parsecTokenDataResponse(json, app) {
-  let ctokenList = json.cToken.map(cToken => {
+  let cTokenList = json.cToken.map(cToken => {
     return {
       address: cToken.token_address,
       symbol: cToken.symbol,
@@ -22,7 +32,7 @@ function parsecTokenDataResponse(json, app) {
   });
 
   app.setState({
-    cTokens: ctokenList
+    cTokens: cTokenList
   });
 }
 
@@ -75,7 +85,7 @@ function getProfitPerToken(tokens, app, maxSupplyInEth) {
     let profitInEth = liquidableAmountInEth * (app.state.incentive - 1);
     if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
 
-    let profitMinusTxFees = profitInEth - (app.state.gasPrice * GasCosts.liquidateBorrow) / 1e18;
+    let profitMinusTxFees = profitInEth - (app.state.gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
 
     return {
       address: token.address,
@@ -128,7 +138,7 @@ class App extends Component {
       ethToUsd: '',
       closeFactor: '',
       incentive: '',
-      gasPrice: '',
+      gasPrices: [],
       accounts: [],
       cTokens: []
     };
@@ -136,7 +146,7 @@ class App extends Component {
     this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
     this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
     this.refreshIncentive = this.refreshIncentive.bind(this);
-    this.refreshGasPrice = this.refreshGasPrice.bind(this);
+    this.refreshGasPrices = this.refreshGasPrices.bind(this);
     this.refreshAccountList = this.refreshAccountList.bind(this);
     this.refreshTokenList = this.refreshTokenList.bind(this);
   }
@@ -145,7 +155,7 @@ class App extends Component {
     this.refreshEthToUsd();
     this.refreshCloseFactor();
     this.refreshIncentive();
-    this.refreshGasPrice();
+    this.refreshGasPrices();
   }
 
   async refreshEthToUsd() {
@@ -195,10 +205,10 @@ class App extends Component {
 
   }
 
-  async refreshGasPrice() {
+  async refreshGasPrices() {
     //this.gasPrice = 182e9;
 
-    try {
+    /*try {
       let gasPrice = await web3.eth.getGasPrice();
       console.log(gasPrice);
 
@@ -207,11 +217,29 @@ class App extends Component {
       })
     } catch (error) {
       console.error(error);
-    }
+    }*/
 
+    let URL = 'https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=KHN6I9RRKD817BHIQTWENYKSP8IR49XMTF';
+
+    axios({
+      method: 'GET',
+      url: URL,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(response => {
+        parseGasPricesResponse(response, this);
+      })
+      .catch(error => {
+        console.error(error);
+      });
   }
 
   async refreshTokenList() {
+    console.log('Refreshing cToken List');
+
     let URL = 'https://api.compound.finance/api/v2/ctoken';
 
     axios({
@@ -231,6 +259,9 @@ class App extends Component {
   }
 
   async refreshAccountList() {
+    //Refresh cTokenList first
+    await this.refreshTokenList();
+
     console.log('Refreshing Account List');
 
     let URL = 'https://api.compound.finance/api/v2/account';
@@ -259,21 +290,20 @@ class App extends Component {
   render() {
     if (!this.initialized) {
       this.initialized = true;
-      this.refreshTokenList();
       this.refreshAccountList();
       return (<div />);
     }
 
     if (true) {
-      let liquidationFee = this.state.gasPrice * GasCosts.liquidateBorrow;
+      let liquidationFee = this.state.gasPrices[1] * GasCosts.liquidateBorrow;
       return (
         <div className='App'>
           <button style={{ float: 'right' }} onClick={this.refreshEthToUsd}> Refresh </button>
           <h3> ETH - USD  </h3>
           <span> {this.state.ethToUsd} USD </span>
-          <button style={{ float: 'right' }} onClick={this.refreshGasPrice}> Refresh </button>
-          <h3> Gas Price  </h3>
-          <span> {this.state.gasPrice} WEI </span>
+          <button style={{ float: 'right' }} onClick={this.refreshGasPrices}> Refresh </button>
+          <h3> Gas Price (GWEI) </h3>
+          <span> Safe: {this.state.gasPrices[0] / 1e9}, Propose: {this.state.gasPrices[1] / 1e9}, Fast: {this.state.gasPrices[2] / 1e9}  </span>
           <h3> Liquidation Fee  </h3>
           <span> {liquidationFee} WEI, </span>
           <span> {liquidationFee / 1e9} GWEI, </span>

@@ -21,7 +21,7 @@ function AccountsTable(props) {
                             return (
                                 <tr key={account.address}>
                                     <td> {account.address} </td>
-                                    <td> {(account.health * 1).toFixed(6)} </td>
+                                    <td> {account.health} </td>
                                     <td> {(account.collateralTimesFactorValueInEth * 1).toFixed(6)} </td>
                                     <td> {(account.borrowValueInEth * 1).toFixed(6)} </td>
                                     <td>
