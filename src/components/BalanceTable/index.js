@@ -1,3 +1,9 @@
+function uninspectAddress(app) {
+    app.setState({
+        addressToInspect: ''
+    })
+}
+
 function BalanceTable(props) {
     //Find corrsponding account
     let account = props.app.state.accounts.find(account => account.address === props.address);
@@ -26,6 +32,10 @@ function BalanceTable(props) {
                     }
                 </tbody>
             </table>
+            <button className="InspectButton" onClick={() => uninspectAddress(props.app)}
+            >
+                Back
+            </button>
         </div>
     )
 }

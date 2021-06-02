@@ -136,7 +136,6 @@ class App extends Component {
     this.initialized = false;
 
     this.state = {
-      inspectingAddress: false,
       addressToInspect: '',
       ethToUsd: '',
       closeFactor: '',
@@ -297,7 +296,7 @@ class App extends Component {
       return (<div />);
     }
 
-    if (this.state.inspectingAddress) {
+    if (this.state.addressToInspect.length > 0) {
       return (
         <BalanceTable app={this} address={this.state.addressToInspect}></BalanceTable>
       );

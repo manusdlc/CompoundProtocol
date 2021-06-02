@@ -81,10 +81,7 @@ function AccountsTable(props) {
                                         }
                                     </td>
                                     <td>
-                                        <button
-                                            className="InspectButton"
-                                            onClick={() => InspectAddress(account.address, props.app)}
-                                        >
+                                        <button className="InspectButton" onClick={() => InspectAddress(account.address, props.app)}>
                                             Inspect
                                         </button>
                                     </td>
