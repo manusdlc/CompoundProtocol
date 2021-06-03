@@ -1,8 +1,7 @@
 import "./AccountsTable.css";
 
-function InspectAddress(address, app) {
+function inspectAddress(address, app) {
     app.setState({
-        inspectingAddress: true,
         addressToInspect: address
     });
 }
@@ -81,7 +80,7 @@ function AccountsTable(props) {
                                         }
                                     </td>
                                     <td>
-                                        <button className="InspectButton" onClick={() => InspectAddress(account.address, props.app)}>
+                                        <button className="InspectButton" onClick={() => inspectAddress(account.address, props.app)}>
                                             Inspect
                                         </button>
                                     </td>

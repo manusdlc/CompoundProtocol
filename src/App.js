@@ -137,10 +137,16 @@ class App extends Component {
 
     this.state = {
       addressToInspect: '',
+      assetToRepay: '',
+      assetToCollect: '',
+
       ethToUsd: '',
+      
+      gasPrices: [],
+
       closeFactor: '',
       incentive: '',
-      gasPrices: [],
+
       accounts: [],
       cTokens: []
     };
@@ -306,10 +312,10 @@ class App extends Component {
       let liquidationFee = this.state.gasPrices[1] * GasCosts.liquidateBorrow;
       return (
         <div className='App'>
-          <button style={{ float: 'right' }} onClick={this.refreshEthToUsd}> Refresh </button>
+          <button style={{ float: 'right' }} onClick={() => this.refreshEthToUsd()}> Refresh </button>
           <h3> ETH - USD  </h3>
           <span> {this.state.ethToUsd} USD </span>
-          <button style={{ float: 'right' }} onClick={this.refreshGasPrices}> Refresh </button>
+          <button style={{ float: 'right' }} onClick={() => this.refreshGasPrices()}> Refresh </button>
           <h3> Gas Price (GWEI) </h3>
           <span> Safe: {this.state.gasPrices[0] / 1e9}, Propose: {this.state.gasPrices[1] / 1e9}, Fast: {this.state.gasPrices[2] / 1e9}  </span>
           <h3> Liquidation Fee  </h3>
@@ -317,7 +323,7 @@ class App extends Component {
           <span> {liquidationFee / 1e9} GWEI, </span>
           <span> {liquidationFee / 1e18} ETH, </span>
           <span> {(liquidationFee / 1e18) * this.state.ethToUsd} USD </span>
-          <button style={{ float: 'right' }} onClick={this.refreshAccountList}> Refresh </button>
+          <button style={{ float: 'right' }} onClick={() => this.refreshAccountList()}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} app={this} ethToUsd={this.state.ethToUsd} />
         </div>
       );
