@@ -1,12 +1,13 @@
 import React, { Component } from 'react';
 import AccountsTable from './components/AccountsTable/index.js';
 import TokensTable from './components/TokensTable/index.js';
+import BalanceTable from './components/BalanceTable/index.js';
+import Header from './components/Header/index.js';
 import Comptroller from './CompoundProtocol/Comptroller.js';
 import GasCosts from './CompoundProtocol/GasCosts.js';
 import OpenPriceFeed from './CompoundProtocol/OpenPriceFeed.js';
 import axios from 'axios';
 import Web3 from 'web3';
-import BalanceTable from './components/BalanceTable/index.js';
 
 const web3 = new Web3('http://192.168.1.2:8545');
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
@@ -63,13 +64,13 @@ function getTokens(tokens, app) {
       supplyInEth: supplyInEth,
       borrow: borrow,
       borrowInEth: borrowInEth,
-      underlyingPriceInEth: underlyingPriceInEth,
-      profit: token.borrow_balance_underlying.value * app.state.closeFactor * (app.state.incentive - 1)
+      underlyingPriceInEth: underlyingPriceInEth
     }
   });
 
   return {
     maxSupplyInEth: maxSupplyInEth,
+    maxBorrowInEth: maxBorrowInEth,
     tokens: tokenList
   }
 }
@@ -77,6 +78,7 @@ function getTokens(tokens, app) {
 
 function getProfitPerToken(tokens, app, maxSupplyInEth) {
   let maxProfitInEth = 0;
+  let gasFees = (app.state.gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
 
   let profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
     let liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
@@ -86,13 +88,11 @@ function getProfitPerToken(tokens, app, maxSupplyInEth) {
     let profitInEth = liquidableAmountInEth * (app.state.incentive - 1);
     if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
 
-    let profitMinusTxFees = profitInEth - (app.state.gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
-
     return {
       address: token.address,
       symbol: token.symbol,
       profitInEth: profitInEth,
-      profitMinusTxFees: profitMinusTxFees
+      profitMinusTxFees: profitInEth - gasFees
     }
   });
 
@@ -104,7 +104,7 @@ function getProfitPerToken(tokens, app, maxSupplyInEth) {
 
 function parseAccountDataResponse(json, app) {
   let accountList = json.accounts.map(account => {
-    let { maxSupplyInEth, tokens } = getTokens(account.tokens, app);
+    let { maxSupplyInEth, maxBorrowInEth, tokens } = getTokens(account.tokens, app);
     let { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth);
 
 
@@ -116,6 +116,7 @@ function parseAccountDataResponse(json, app) {
       tokens: tokens,
       profitPerTokenInEth: profitPerTokenInEth,
       maxSupplyInEth: maxSupplyInEth,
+      maxBorrowInEth: maxBorrowInEth,
       maxProfitInEth: maxProfitInEth
     }
   });
@@ -141,7 +142,7 @@ class App extends Component {
       assetToCollect: '',
 
       ethToUsd: '',
-      
+
       gasPrices: [],
 
       closeFactor: '',
@@ -309,20 +310,9 @@ class App extends Component {
     }
 
     if (true) {
-      let liquidationFee = this.state.gasPrices[1] * GasCosts.liquidateBorrow;
       return (
         <div className='App'>
-          <button style={{ float: 'right' }} onClick={() => this.refreshEthToUsd()}> Refresh </button>
-          <h3> ETH - USD  </h3>
-          <span> {this.state.ethToUsd} USD </span>
-          <button style={{ float: 'right' }} onClick={() => this.refreshGasPrices()}> Refresh </button>
-          <h3> Gas Price (GWEI) </h3>
-          <span> Safe: {this.state.gasPrices[0] / 1e9}, Propose: {this.state.gasPrices[1] / 1e9}, Fast: {this.state.gasPrices[2] / 1e9}  </span>
-          <h3> Liquidation Fee  </h3>
-          <span> {liquidationFee} WEI, </span>
-          <span> {liquidationFee / 1e9} GWEI, </span>
-          <span> {liquidationFee / 1e18} ETH, </span>
-          <span> {(liquidationFee / 1e18) * this.state.ethToUsd} USD </span>
+          <Header app={this} />
           <button style={{ float: 'right' }} onClick={() => this.refreshAccountList()}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} app={this} ethToUsd={this.state.ethToUsd} />
         </div>

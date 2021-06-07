@@ -17,7 +17,6 @@ function AccountsTable(props) {
                         <th> Collateral * Factor (Eth) </th>
                         <th> Borrow (Eth) </th>
                         <th> Tokens </th>
-                        <th> Profit / token (Eth) </th>
                         <th> Profit / token - TxFee (Eth) </th>
                         <th> Inspection </th>
                     </tr>
@@ -39,26 +38,8 @@ function AccountsTable(props) {
                                                         <span style={{ fontWeight: 'bold' }}> {token.symbol} </span>
                                                         <br />
                                                         <span text-alignment='center'> Sup: {(token.supply * 1).toFixed(6)} </span>
+                                                        <br/>
                                                         <span text-alignment='center'> Bor: {(token.borrow * 1).toFixed(6)} </span>
-                                                        <span text-alignment='center'> Pro: {(token.profit * 1).toFixed(6)} </span>
-                                                        <br />
-                                                        <span text-alignment='center'> Sup: {(token.supplyInEth * 1).toFixed(6)} </span>
-                                                        <span text-alignment='center'> Bor: {(token.borrowInEth * 1).toFixed(6)} </span>
-                                                    </div>
-                                                );
-                                            })
-                                        }
-                                    </td>
-                                    <td>
-                                        {
-                                            account.profitPerTokenInEth.map((token) => {
-                                                return (
-                                                    <div key={token.address}>
-                                                        <span style={{ fontWeight: 'bold' }}> {token.symbol} </span>
-                                                        <br />
-                                                        <span text-alignment='center'> {(token.profitInEth * 1).toFixed(6)} ETH </span>
-                                                        <br />
-                                                        <span text-alignment='center'> {(token.profitInEth * props.ethToUsd).toFixed(6)} USD </span>
                                                     </div>
                                                 );
                                             })

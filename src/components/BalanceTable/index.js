@@ -1,27 +1,42 @@
 function uninspectAddress(app) {
     app.setState({
-        addressToInspect: ''
+        addressToInspect: '',
+        assetToRepay: '',
+        assetToCollect: ''
     });
 }
 
-/*
-function repayChecked(app, address) {
-    if (app.state.assetToRepay.length > 0) {
-        app.setState({
-            assetToRepay: ''
-        });
-    } else {
-        app.setState({
-            assetToRepay: address
-        });
-    }
+function repayAssetClicked(app, address) {
+    app.setState({
+        assetToRepay: address
+    });
+
+    app.state.cTokens.forEach(cToken => {
+        if (cToken.address !== address) {
+            let radioButton = document.getElementById(String(cToken.address) + "_repay");
+
+            if (radioButton !== null) {
+                radioButton.checked = false;
+            }
+        }
+    });
 }
 
-function collectChecked(app, address) {
+function collectAssetClicked(app, address) {
     app.setState({
         assetToCollect: address
     });
-}*/
+
+    app.state.cTokens.forEach(cToken => {
+        if (cToken.address !== address) {
+            let radioButton = document.getElementById(String(cToken.address) + "_collect");
+
+            if (radioButton !== null) {
+                radioButton.checked = false;
+            }
+        }
+    });
+}
 
 function BalanceTable(props) {
     /* Find corresponding account */
@@ -29,6 +44,7 @@ function BalanceTable(props) {
 
     return (
         <div className="BalanceTable">
+            <p> Health: {account.health} </p>
             <table>
                 <thead>
                     <tr>
@@ -48,13 +64,19 @@ function BalanceTable(props) {
                                     <td> {cToken.symbol} </td>
                                     <td> {cToken.address} </td>
                                     <td>
-                                        {cToken.supply} {cToken.symbol}
+                                        {cToken.supply} {String(cToken.symbol).substring(1)}
                                         <br />
                                         {cToken.supplyInEth} ETH
                                     </td>
                                     <td> {cToken.borrow} </td>
-                                    <td> <input type="checkbox" id="repayCheck" /> </td>
-                                    <td> <input type="checkbox" id="collectCheck" /> </td>
+                                    <td> <input type="radio"
+                                        id={String(cToken.address) + "_repay"}
+                                        onClick={() => repayAssetClicked(props.app, cToken.address)} />
+                                    </td>
+                                    <td> <input type="radio"
+                                        id={String(cToken.address) + "_collect"}
+                                        onClick={() => collectAssetClicked(props.app, cToken.address)} />
+                                    </td>
                                 </tr>
                             );
                         })
