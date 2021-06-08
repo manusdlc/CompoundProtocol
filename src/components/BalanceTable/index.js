@@ -1,14 +1,17 @@
 function uninspectAddress(app) {
     app.setState({
-        addressToInspect: '',
-        assetToRepay: '',
-        assetToCollect: ''
+        addressToInspect: "",
+        tokenToRepay: "",
+        tokenToCollect: "",
+        repayAmount: "",
+        repayAmountInEth: "",
+        profitInEth: ""
     });
 }
 
 function repayAssetClicked(app, address) {
     app.setState({
-        assetToRepay: address
+        tokenToRepay: address
     });
 
     app.state.cTokens.forEach(cToken => {
@@ -24,7 +27,7 @@ function repayAssetClicked(app, address) {
 
 function collectAssetClicked(app, address) {
     app.setState({
-        assetToCollect: address
+        tokenToCollect: address
     });
 
     app.state.cTokens.forEach(cToken => {
@@ -68,7 +71,11 @@ function BalanceTable(props) {
                                         <br />
                                         {cToken.supplyInEth} ETH
                                     </td>
-                                    <td> {cToken.borrow} </td>
+                                    <td>
+                                        {cToken.borrow} {String(cToken.symbol).substring(1)}
+                                        <br />
+                                        {cToken.borrowInEth} ETH
+                                    </td>
                                     <td> <input type="radio"
                                         id={String(cToken.address) + "_repay"}
                                         onClick={() => repayAssetClicked(props.app, cToken.address)} />

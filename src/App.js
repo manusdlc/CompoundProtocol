@@ -1,15 +1,16 @@
-import React, { Component } from 'react';
-import AccountsTable from './components/AccountsTable/index.js';
-import TokensTable from './components/TokensTable/index.js';
-import BalanceTable from './components/BalanceTable/index.js';
-import Header from './components/Header/index.js';
-import Comptroller from './CompoundProtocol/Comptroller.js';
-import GasCosts from './CompoundProtocol/GasCosts.js';
-import OpenPriceFeed from './CompoundProtocol/OpenPriceFeed.js';
-import axios from 'axios';
-import Web3 from 'web3';
+import React, { Component } from "react";
+import Header from "./components/Header/index.js";
+import AccountsTable from "./components/AccountsTable/index.js";
+import TokensTable from "./components/TokensTable/index.js";
+import BalanceTable from "./components/BalanceTable/index.js";
+import LiquidationMenu from "./components/LiquidationMenu/index.js";
+import Comptroller from "./CompoundProtocol/Comptroller.js";
+import GasCosts from "./CompoundProtocol/GasCosts.js";
+import OpenPriceFeed from "./CompoundProtocol/OpenPriceFeed.js";
+import axios from "axios";
+import Web3 from "web3";
 
-const web3 = new Web3('http://192.168.1.2:8545');
+const web3 = new Web3("http://192.168.1.2:8545");
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
@@ -107,7 +108,6 @@ function parseAccountDataResponse(json, app) {
     let { maxSupplyInEth, maxBorrowInEth, tokens } = getTokens(account.tokens, app);
     let { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth);
 
-
     return {
       address: account.address,
       health: account.health.value,
@@ -137,16 +137,19 @@ class App extends Component {
     this.initialized = false;
 
     this.state = {
-      addressToInspect: '',
-      assetToRepay: '',
-      assetToCollect: '',
+      addressToInspect: "",
+      tokenToRepay: "",
+      tokenToCollect: "",
+      repayAmount: "",
+      repayAMountInEth: "",
+      profitInEth: "",
 
-      ethToUsd: '',
+      ethToUsd: "",
 
       gasPrices: [],
 
-      closeFactor: '',
-      incentive: '',
+      closeFactor: "",
+      incentive: "",
 
       accounts: [],
       cTokens: []
@@ -171,7 +174,7 @@ class App extends Component {
     //this.ethToUsd = 3000;
 
     try {
-      let ethToUsd = await priceFeed.methods.getUnderlyingPrice('0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5').call() / 1e18;
+      let ethToUsd = await priceFeed.methods.getUnderlyingPrice("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5").call() / 1e18;
       console.log(ethToUsd);
 
       this.setState({
@@ -228,14 +231,14 @@ class App extends Component {
       console.error(error);
     }*/
 
-    let URL = 'https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=KHN6I9RRKD817BHIQTWENYKSP8IR49XMTF';
+    let URL = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=KHN6I9RRKD817BHIQTWENYKSP8IR49XMTF";
 
     axios({
-      method: 'GET',
+      method: "GET",
       url: URL,
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       }
     })
       .then(response => {
@@ -247,16 +250,16 @@ class App extends Component {
   }
 
   async refreshTokenList() {
-    console.log('Refreshing cToken List');
+    console.log("Refreshing cToken List");
 
-    let URL = 'https://api.compound.finance/api/v2/ctoken';
+    let URL = "https://api.compound.finance/api/v2/ctoken";
 
     axios({
-      method: 'POST',
+      method: "POST",
       url: URL,
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       }
     })
       .then(response => {
@@ -271,21 +274,21 @@ class App extends Component {
     //Refresh cTokenList first
     await this.refreshTokenList();
 
-    console.log('Refreshing Account List');
+    console.log("Refreshing Account List");
 
-    let URL = 'https://api.compound.finance/api/v2/account';
+    let URL = "https://api.compound.finance/api/v2/account";
 
     axios({
-      method: 'POST',
+      method: "POST",
       url: URL,
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       },
 
       data: {
-        max_health: { value: '1.0' },
-        min_borrow_value_in_eth: { value: '0.002' },
+        max_health: { value: "1.0" },
+        min_borrow_value_in_eth: { value: "0.002" },
         page_size: 100
       }
 
@@ -304,16 +307,28 @@ class App extends Component {
     }
 
     if (this.state.addressToInspect.length > 0) {
-      return (
-        <BalanceTable app={this} address={this.state.addressToInspect}></BalanceTable>
-      );
+      if (this.state.tokenToRepay.length > 0 && this.state.tokenToCollect.length > 0) {
+        return (
+          <div className="App">
+            <BalanceTable app={this} address={this.state.addressToInspect}></BalanceTable>
+            <LiquidationMenu app={this} accountAddress={this.state.addressToInspect}
+              tokenToRepay={this.state.tokenToRepay} tokenToCollect={this.state.tokenToCollect}></LiquidationMenu>
+          </div>
+        );
+      } else {
+        return (
+          <div className="App">
+            <BalanceTable app={this} address={this.state.addressToInspect}></BalanceTable>
+          </div>
+        );
+      }
     }
 
     if (true) {
       return (
-        <div className='App'>
+        <div className="App">
           <Header app={this} />
-          <button style={{ float: 'right' }} onClick={() => this.refreshAccountList()}> Refresh </button>
+          <button style={{ float: "right" }} onClick={() => this.refreshAccountList()}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} app={this} ethToUsd={this.state.ethToUsd} />
         </div>
       );
@@ -321,8 +336,8 @@ class App extends Component {
 
     if (true) {
       return (
-        <div className='App'>
-          <button style={{ float: 'right' }} onClick={this.refreshTokenList}> Refresh </button>
+        <div className="App">
+          <button style={{ float: "right" }} onClick={this.refreshTokenList}> Refresh </button>
           <TokensTable cTokens={this.state.cTokens} />
         </div>
       );
