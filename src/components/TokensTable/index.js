@@ -10,17 +10,19 @@ function TokensTable(props) {
                         <th> Symbol </th>
                         <th> Collateral Factor </th>
                         <th> Underlying Price (Eth) </th>
+                        <th> Allowance </th>
                     </tr>
                 </thead>
                 <tbody>
                     {
-                        props.cTokens.map((cToken) => {
+                        props.cTokens.map(cToken => {
                             return (
                                 <tr key={cToken.address}>
                                     <td> {cToken.address} </td>
                                     <td> {cToken.symbol} </td>
                                     <td> {cToken.collateralFactor} </td>
                                     <td> {cToken.underlyingPriceInEth} </td>
+                                    <td> {cToken.allowance} </td>
                                 </tr>
                             );
                         }

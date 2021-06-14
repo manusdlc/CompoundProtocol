@@ -7,53 +7,69 @@ import LiquidationMenu from "./components/LiquidationMenu/index.js";
 import Comptroller from "./CompoundProtocol/Comptroller.js";
 import GasCosts from "./CompoundProtocol/GasCosts.js";
 import OpenPriceFeed from "./CompoundProtocol/OpenPriceFeed.js";
+import ERC20 from "./CompoundProtocol/ERC20.js";
 import axios from "axios";
 import Web3 from "web3";
 
-const web3 = new Web3("http://192.168.1.2:8545");
+//Load environment variables
+require("custom-env").config("dev", "/home/robotito/Crypto/compound_liquidator/.env");
+console.log("TESTING " + process.env.INFURA_API);
+
+//const web3 = new Web3(process.env.GETH_IP);
+const web3 = new Web3(new Web3.providers.HttpProvider(process.env.INFURA_API));
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
-function parseGasPricesResponse(json, app) {
+const gasURL = process.env.ETHER_SCAN_API;
+const accountURL = "https://api.compound.finance/api/v2/account";
+const cTokenURL = "https://api.compound.finance/api/v2/ctoken";
+const accountRequestData = {
+  max_health: { value: "1.0" },
+  min_borrow_value_in_eth: { value: "0.002" },
+  page_size: 100
+};
+
+function parseGasResponse(json) {
   console.log("Safe: " + json.data.result.SafeGasPrice);
   console.log("Propose: " + json.data.result.ProposeGasPrice);
   console.log("Fast: " + json.data.result.FastGasPrice);
 
-  app.setState({
-    gasPrices: [json.data.result.SafeGasPrice * 1e9, json.data.result.ProposeGasPrice * 1e9, json.data.result.FastGasPrice * 1e9]
-  });
+  return [json.data.result.SafeGasPrice * 1e9, json.data.result.ProposeGasPrice * 1e9, json.data.result.FastGasPrice * 1e9];
 }
 
-function parsecTokenDataResponse(json, app) {
-  let cTokenList = json.cToken.map(cToken => {
-    return {
-      address: cToken.token_address,
-      symbol: cToken.symbol,
-      collateralFactor: cToken.collateral_factor.value,
-      underlyingPriceInEth: cToken.underlying_price.value
-    };
-  });
+async function parsecTokenDataResponse(json) {
+  try {
+    const cTokenPromiseList = json.data.cToken.map(async cToken => {
+      const tokenContract = new web3.eth.Contract(ERC20.abi, String(cToken.token_address));
+      const tokenAllowance = await tokenContract.methods.allowance(process.env.MY_ACCOUNT_ADDRESS, String(cToken.token_address)).call();
 
-  app.setState({
-    cTokens: cTokenList
-  });
+      return {
+        address: cToken.token_address,
+        symbol: cToken.symbol,
+        collateralFactor: cToken.collateral_factor.value,
+        underlyingPriceInEth: cToken.underlying_price.value,
+        allowance: tokenAllowance
+      };
+    });
+
+    const cTokenList = await Promise.all(cTokenPromiseList);
+    return cTokenList;
+  } catch (error) {
+    console.error(error);
+  }
 }
 
-function getUnderlyingPriceInEth(token, app) {
-  return app.state.cTokens.find(cToken => cToken.address === token.address).underlyingPriceInEth;
-}
-
-function getTokens(tokens, app) {
+function getTokens(accountcTokens, cTokenList) {
   let maxSupplyInEth = 0;
   let maxBorrowInEth = 0;
 
-  let tokenList = tokens.map(token => {
-    let underlyingPriceInEth = getUnderlyingPriceInEth(token, app);
-    let supply = token.supply_balance_underlying.value;
-    let borrow = token.borrow_balance_underlying.value;
+  const accountcTokenList = accountcTokens.map(token => {
+    const underlyingPriceInEth = cTokenList.find(cToken => cToken.address === token.address).underlyingPriceInEth;
+    const supply = token.supply_balance_underlying.value;
+    const borrow = token.borrow_balance_underlying.value;
 
-    let supplyInEth = supply * underlyingPriceInEth;
-    let borrowInEth = borrow * underlyingPriceInEth;
+    const supplyInEth = supply * underlyingPriceInEth;
+    const borrowInEth = borrow * underlyingPriceInEth;
 
     if (borrowInEth > maxBorrowInEth) maxBorrowInEth = borrowInEth;
     if (supplyInEth > maxSupplyInEth) maxSupplyInEth = supplyInEth;
@@ -72,21 +88,21 @@ function getTokens(tokens, app) {
   return {
     maxSupplyInEth: maxSupplyInEth,
     maxBorrowInEth: maxBorrowInEth,
-    tokens: tokenList
+    tokens: accountcTokenList
   }
 }
 
 
 function getProfitPerToken(tokens, app, maxSupplyInEth) {
   let maxProfitInEth = 0;
-  let gasFees = (app.state.gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
+  const gasFees = (app.state.gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
 
-  let profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
+  const profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
     let liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
 
     while (liquidableAmountInEth > maxSupplyInEth) liquidableAmountInEth -= 0.0001;
 
-    let profitInEth = liquidableAmountInEth * (app.state.incentive - 1);
+    const profitInEth = liquidableAmountInEth * (app.state.incentive - 1);
     if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
 
     return {
@@ -103,9 +119,9 @@ function getProfitPerToken(tokens, app, maxSupplyInEth) {
   }
 }
 
-function parseAccountDataResponse(json, app) {
-  let accountList = json.accounts.map(account => {
-    let { maxSupplyInEth, maxBorrowInEth, tokens } = getTokens(account.tokens, app);
+function parseAccountDataResponse(json, app, cTokenList) {
+  const accountList = json.data.accounts.map(account => {
+    let { maxSupplyInEth, maxBorrowInEth, tokens } = getTokens(account.tokens, cTokenList);
     let { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth);
 
     return {
@@ -125,18 +141,16 @@ function parseAccountDataResponse(json, app) {
     return b.maxProfitInEth - a.maxProfitInEth;
   });
 
-  app.setState({
-    accounts: accountList
-  });
+  return accountList;
 }
 
 class App extends Component {
   constructor() {
     super();
 
-    this.initialized = false;
-
     this.state = {
+      displayTokens: false,
+
       addressToInspect: "",
       tokenToRepay: "",
       tokenToCollect: "",
@@ -151,16 +165,15 @@ class App extends Component {
       closeFactor: "",
       incentive: "",
 
-      accounts: [],
-      cTokens: []
+      cTokens: [],
+      accounts: []
     };
 
     this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
     this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
     this.refreshIncentive = this.refreshIncentive.bind(this);
     this.refreshGasPrices = this.refreshGasPrices.bind(this);
-    this.refreshAccountList = this.refreshAccountList.bind(this);
-    this.refreshTokenList = this.refreshTokenList.bind(this);
+    this.refreshcTokenAndAccountList = this.refreshcTokenAndAccountList.bind(this);
   }
 
   componentDidMount() {
@@ -168,11 +181,10 @@ class App extends Component {
     this.refreshCloseFactor();
     this.refreshIncentive();
     this.refreshGasPrices();
+    this.refreshcTokenAndAccountList();
   }
 
   async refreshEthToUsd() {
-    //this.ethToUsd = 3000;
-
     try {
       let ethToUsd = await priceFeed.methods.getUnderlyingPrice("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5").call() / 1e18;
       console.log(ethToUsd);
@@ -186,10 +198,8 @@ class App extends Component {
   }
 
   async refreshCloseFactor() {
-    //this.closeFactor = 0.5;
-
     try {
-      let closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
+      const closeFactor = await troll.methods.closeFactorMantissa().call() / 1e18;
       console.log(closeFactor);
 
       this.setState({
@@ -202,10 +212,8 @@ class App extends Component {
   }
 
   async refreshIncentive() {
-    //this.incentive = 1.08;
-
     try {
-      let incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
+      const incentive = await troll.methods.liquidationIncentiveMantissa().call() / 1e18;
       console.log(incentive);
 
       this.setState({
@@ -218,94 +226,41 @@ class App extends Component {
   }
 
   async refreshGasPrices() {
-    //this.gasPrice = 182e9;
-
-    /*try {
-      let gasPrice = await web3.eth.getGasPrice();
-      console.log(gasPrice);
+    try {
+      const gasDataResponse = await axios.get(gasURL);
+      const gasPrices = parseGasResponse(gasDataResponse);
 
       this.setState({
-        gasPrice: gasPrice
+        gasPrices: gasPrices
       })
     } catch (error) {
       console.error(error);
-    }*/
-
-    let URL = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=KHN6I9RRKD817BHIQTWENYKSP8IR49XMTF";
-
-    axios({
-      method: "GET",
-      url: URL,
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      }
-    })
-      .then(response => {
-        parseGasPricesResponse(response, this);
-      })
-      .catch(error => {
-        console.error(error);
-      });
+    }
   }
 
-  async refreshTokenList() {
-    console.log("Refreshing cToken List");
+  async refreshcTokenAndAccountList() {
+    //parsing account data requires data from the cToken list
+    try {
+      console.log("Refreshing cToken list");
+      const cTokenDataResponse = await axios.get(cTokenURL);
+      const cTokenList = await parsecTokenDataResponse(cTokenDataResponse);
 
-    let URL = "https://api.compound.finance/api/v2/ctoken";
+      console.log("Refreshing account list")
+      const accountDataResponse = await axios.post(accountURL, accountRequestData);
+      const accountList = parseAccountDataResponse(accountDataResponse, this, cTokenList);
 
-    axios({
-      method: "POST",
-      url: URL,
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      }
-    })
-      .then(response => {
-        parsecTokenDataResponse(response.data, this);
+      this.setState({
+        cTokens: cTokenList,
+        accounts: accountList
       })
-      .catch(error => {
-        console.error(error);
-      });
-  }
 
-  async refreshAccountList() {
-    //Refresh cTokenList first
-    await this.refreshTokenList();
-
-    console.log("Refreshing Account List");
-
-    let URL = "https://api.compound.finance/api/v2/account";
-
-    axios({
-      method: "POST",
-      url: URL,
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      },
-
-      data: {
-        max_health: { value: "1.0" },
-        min_borrow_value_in_eth: { value: "0.002" },
-        page_size: 100
-      }
-
-    }).then(response => {
-      parseAccountDataResponse(response.data, this);
-    }).catch(error => {
+      console.log("Done refreshing cToken and account lists")
+    } catch (error) {
       console.error(error);
-    });
+    }
   }
 
   render() {
-    if (!this.initialized) {
-      this.initialized = true;
-      this.refreshAccountList();
-      return (<div />);
-    }
-
     if (this.state.addressToInspect.length > 0) {
       if (this.state.tokenToRepay.length > 0 && this.state.tokenToCollect.length > 0) {
         return (
@@ -324,19 +279,19 @@ class App extends Component {
       }
     }
 
-    if (true) {
+    if (!this.state.displayTokens) {
       return (
         <div className="App">
           <Header app={this} />
-          <button style={{ float: "right" }} onClick={() => this.refreshAccountList()}> Refresh </button>
+          <button onClick={() => this.setState({ displayTokens: true })}> See cTokens</button>
+          <button style={{ float: "right" }} onClick={() => this.refreshcTokenAndAccountList()}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} app={this} ethToUsd={this.state.ethToUsd} />
         </div>
       );
-    }
-
-    if (true) {
+    } else {
       return (
         <div className="App">
+          <button onClick={() => this.setState({ displayTokens: false })}> See accounts</button>
           <button style={{ float: "right" }} onClick={this.refreshTokenList}> Refresh </button>
           <TokensTable cTokens={this.state.cTokens} />
         </div>
