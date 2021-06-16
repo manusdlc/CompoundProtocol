@@ -11,16 +11,16 @@ import ERC20 from "./CompoundProtocol/ERC20.js";
 import axios from "axios";
 import Web3 from "web3";
 
-//Load environment variables
-require("custom-env").config("dev", "/home/robotito/Crypto/compound_liquidator/.env");
-console.log("TESTING " + process.env.INFURA_API);
+// /home/robotito/Crypto/compound_liquidator/.env
+//const result = require("dotenv").config({ path: "/home/robotito/Crypto/compound_liquidator/.env" });
+//if (result.error) throw result.error;
 
-//const web3 = new Web3(process.env.GETH_IP);
-const web3 = new Web3(new Web3.providers.HttpProvider(process.env.INFURA_API));
+const web3 = new Web3("http://192.168.1.2:8545");
+//const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/63bb2d03b65543a1bb50ed173d2c1966"));
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
-const gasURL = process.env.ETHER_SCAN_API;
+const gasURL = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=KHN6I9RRKD817BHIQTWENYKSP8IR49XMTF";
 const accountURL = "https://api.compound.finance/api/v2/account";
 const cTokenURL = "https://api.compound.finance/api/v2/ctoken";
 const accountRequestData = {
@@ -41,7 +41,7 @@ async function parsecTokenDataResponse(json) {
   try {
     const cTokenPromiseList = json.data.cToken.map(async cToken => {
       const tokenContract = new web3.eth.Contract(ERC20.abi, String(cToken.token_address));
-      const tokenAllowance = await tokenContract.methods.allowance(process.env.MY_ACCOUNT_ADDRESS, String(cToken.token_address)).call();
+      const tokenAllowance = await tokenContract.methods.allowance("0x47E01860F048c12449Bc31d1574566E7905A0880", String(cToken.token_address)).call();
 
       return {
         address: cToken.token_address,
@@ -137,10 +137,7 @@ function parseAccountDataResponse(json, app, cTokenList) {
     }
   });
 
-  accountList.sort((a, b) => {
-    return b.maxProfitInEth - a.maxProfitInEth;
-  });
-
+  accountList.sort((a, b) => b.maxProfitInEth - a.maxProfitInEth);
   return accountList;
 }
 

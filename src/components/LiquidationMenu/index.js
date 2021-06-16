@@ -1,7 +1,52 @@
 import GasCosts from "../../CompoundProtocol/GasCosts.js"
+import cTokens from "../../CompoundProtocol/cTokens.js"
+import BigNumber from "bignumber.js"
+
+function getcTokenContract(cTokenAddress, web3) {
+    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
+    const cTokenContract = new web3.eth.Contract(cToken.abi, cToken.address);
+
+    return cTokenContract;
+}
+
+async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice) {
+    const cTokenContract = getcTokenContract(borrowedAssetAddress);
+
+    //Check if the borrowed asset is cETH
+    try {
+        if (borrowedAssetAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
+            const liquidation = await cTokenContract.methods.liquidateBorrow(borrowerAddress, collateralAddress).send({
+                from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
+                value: repayAmount,
+                gas: 400000,
+                gasPrice: gasPrice
+            });
+
+            if (liquidation.events && liquidation.events.Failure) {
+                const errorCode = liquidation.events.Failure.returnValues.error;
+                console.error("liquidation error, code " + errorCode);
+            }
+        } else {
+            const liquidation = await cTokenContract.methods.liquidateBorrow(borrowerAddress, repayAmount, collateralAddress).send({
+                from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
+                gas: 400000,
+                gasPrice: gasPrice
+            });
+
+            if (liquidation.events && liquidation.events.Failure) {
+                const errorCode = liquidation.events.Failure.returnValues.error;
+                console.error("liquidation error, code " + errorCode);
+            }
+        }
+    } catch (error) {
+        console.error(error);
+    }
+}
 
 function liquidateAccount() {
+    //Adjust repayAmount to the corresponding decimals
     
+
 }
 
 function getRepayAmount(tokenToRepay, closeFactor) {
@@ -61,7 +106,7 @@ function LiquidationMenu(props) {
                 <p> Repaying: {app.state.repayAmount} {String(tokenToRepay.symbol).substring(1)} </p>
                 <p> Repaying: {app.state.repayAmountInEth} ETH </p>
                 <p> Profit: {app.state.profitInEth} ETH </p>
-                <button className="LiquidationButton"> Liquidate </button>
+                <button className="LiquidationButton" oncClick={() => liquidateAccount()}> Liquidate </button>
             </div>
         </div>
     );
