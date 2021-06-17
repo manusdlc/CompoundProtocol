@@ -1,8 +1,8 @@
 function uninspectAddress(app) {
     app.setState({
         addressToInspect: "",
-        tokenToRepay: "",
-        tokenToCollect: "",
+        tokenToRepayAddress: "",
+        tokenToCollectAddress: "",
         repayAmount: "",
         repayAmountInEth: "",
         profitInEth: ""
@@ -11,7 +11,7 @@ function uninspectAddress(app) {
 
 function repayAssetClicked(app, address) {
     app.setState({
-        tokenToRepay: address
+        tokenToRepayAddress: address
     });
 
     app.state.cTokens.forEach(cToken => {
@@ -27,7 +27,7 @@ function repayAssetClicked(app, address) {
 
 function collectAssetClicked(app, address) {
     app.setState({
-        tokenToCollect: address
+        tokenToCollectAddress: address
     });
 
     app.state.cTokens.forEach(cToken => {

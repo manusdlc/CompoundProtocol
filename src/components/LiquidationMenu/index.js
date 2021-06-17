@@ -12,8 +12,9 @@ function getcTokenContract(cTokenAddress, web3) {
 async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice) {
     const cTokenContract = getcTokenContract(borrowedAssetAddress);
 
-    //Check if the borrowed asset is cETH
+
     try {
+        //Check if the borrowed asset is cETH
         if (borrowedAssetAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
             const liquidation = await cTokenContract.methods.liquidateBorrow(borrowerAddress, collateralAddress).send({
                 from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
@@ -45,7 +46,7 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
 
 function liquidateAccount() {
     //Adjust repayAmount to the corresponding decimals
-    
+
 
 }
 
@@ -83,9 +84,9 @@ function updateValues(app, tokenToRepay, tokenToCollect) {
 
 function LiquidationMenu(props) {
     let app = props.app;
-    let account = app.state.accounts.find(account => account.address === props.accountAddress);
-    let tokenToRepay = account.tokens.find(token => token.address === props.tokenToRepay);
-    let tokenToCollect = account.tokens.find(token => token.address === props.tokenToCollect);
+    let account = app.state.accounts.find(account => account.address === app.state.addressToInspect);
+    let tokenToRepay = account.tokens.find(token => token.address === app.state.tokenToRepayAddress);
+    let tokenToCollect = account.tokens.find(token => token.address === app.state.tokenToCollectAddress);
 
     return (
         <div className="LiquidationMenu">
@@ -106,7 +107,7 @@ function LiquidationMenu(props) {
                 <p> Repaying: {app.state.repayAmount} {String(tokenToRepay.symbol).substring(1)} </p>
                 <p> Repaying: {app.state.repayAmountInEth} ETH </p>
                 <p> Profit: {app.state.profitInEth} ETH </p>
-                <button className="LiquidationButton" oncClick={() => liquidateAccount()}> Liquidate </button>
+                <button className="LiquidationButton" onClick={() => liquidateAccount()}> Liquidate </button>
             </div>
         </div>
     );

@@ -15,12 +15,13 @@ import Web3 from "web3";
 //const result = require("dotenv").config({ path: "/home/robotito/Crypto/compound_liquidator/.env" });
 //if (result.error) throw result.error;
 
-const web3 = new Web3("http://192.168.1.2:8545");
-//const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/63bb2d03b65543a1bb50ed173d2c1966"));
+//const web3 = new Web3("http://192.168.1.2:8545");
+const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/63bb2d03b65543a1bb50ed173d2c1966"));
 const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
 const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
-const gasURL = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=KHN6I9RRKD817BHIQTWENYKSP8IR49XMTF";
+
+const gasURL = "https://ethgasstation.info/api/ethgasAPI.json?api-key=ba3b8b16c8236248538879ebba23562f288a4f93965d58d90b534b2ea44a";
 const accountURL = "https://api.compound.finance/api/v2/account";
 const cTokenURL = "https://api.compound.finance/api/v2/ctoken";
 const accountRequestData = {
@@ -30,11 +31,13 @@ const accountRequestData = {
 };
 
 function parseGasResponse(json) {
-  console.log("Safe: " + json.data.result.SafeGasPrice);
-  console.log("Propose: " + json.data.result.ProposeGasPrice);
-  console.log("Fast: " + json.data.result.FastGasPrice);
+  console.log(JSON.stringify(json));
+  console.log("SafeLow: " + json.data.safeLow);
+  console.log("Average: " + json.data.average);
+  console.log("Fast: " + json.data.fast);
+  console.log("Fastest: " + json.data.fastest);
 
-  return [json.data.result.SafeGasPrice * 1e9, json.data.result.ProposeGasPrice * 1e9, json.data.result.FastGasPrice * 1e9];
+  return [json.data.safeLow / 10, json.data.average / 10, json.data.fast / 10, json.data.fastest / 10];
 }
 
 async function parsecTokenDataResponse(json) {
@@ -95,7 +98,7 @@ function getTokens(accountcTokens, cTokenList) {
 
 function getProfitPerToken(tokens, app, maxSupplyInEth) {
   let maxProfitInEth = 0;
-  const gasFees = (app.state.gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
+  const gasFees = (app.state.gasPrices[3] * GasCosts.liquidateBorrow) / 1e9;
 
   const profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
     let liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
@@ -149,8 +152,8 @@ class App extends Component {
       displayTokens: false,
 
       addressToInspect: "",
-      tokenToRepay: "",
-      tokenToCollect: "",
+      tokenToRepayAddress: "",
+      tokenToCollectAddress: "",
       repayAmount: "",
       repayAMountInEth: "",
       profitInEth: "",
@@ -236,8 +239,8 @@ class App extends Component {
   }
 
   async refreshcTokenAndAccountList() {
-    //parsing account data requires data from the cToken list
     try {
+      //Parsing account data requires data from the cToken list
       console.log("Refreshing cToken list");
       const cTokenDataResponse = await axios.get(cTokenURL);
       const cTokenList = await parsecTokenDataResponse(cTokenDataResponse);
@@ -259,12 +262,11 @@ class App extends Component {
 
   render() {
     if (this.state.addressToInspect.length > 0) {
-      if (this.state.tokenToRepay.length > 0 && this.state.tokenToCollect.length > 0) {
+      if (this.state.tokenToRepayAddress.length > 0 && this.state.tokenToCollectAddress.length > 0) {
         return (
           <div className="App">
             <BalanceTable app={this} address={this.state.addressToInspect}></BalanceTable>
-            <LiquidationMenu app={this} accountAddress={this.state.addressToInspect}
-              tokenToRepay={this.state.tokenToRepay} tokenToCollect={this.state.tokenToCollect}></LiquidationMenu>
+            <LiquidationMenu app={this}></LiquidationMenu>
           </div>
         );
       } else {
