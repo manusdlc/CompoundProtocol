@@ -11,14 +11,16 @@ import ERC20 from "./CompoundProtocol/ERC20.js";
 import axios from "axios";
 import Web3 from "web3";
 
+console.log(process.env.MYACCOUNT_ADDRESS);
+
 // /home/robotito/Crypto/compound_liquidator/.env
 //const result = require("dotenv").config({ path: "/home/robotito/Crypto/compound_liquidator/.env" });
 //if (result.error) throw result.error;
 
 //const web3 = new Web3("http://192.168.1.2:8545");
-const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/63bb2d03b65543a1bb50ed173d2c1966"));
-const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
-const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
+export const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/63bb2d03b65543a1bb50ed173d2c1966"));
+export const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
+export const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
 
 
 const gasURL = "https://ethgasstation.info/api/ethgasAPI.json?api-key=ba3b8b16c8236248538879ebba23562f288a4f93965d58d90b534b2ea44a";
@@ -31,11 +33,10 @@ const accountRequestData = {
 };
 
 function parseGasResponse(json) {
-  console.log(JSON.stringify(json));
-  console.log("SafeLow: " + json.data.safeLow);
-  console.log("Average: " + json.data.average);
-  console.log("Fast: " + json.data.fast);
-  console.log("Fastest: " + json.data.fastest);
+  console.log("SafeLow: " + json.data.safeLow / 10);
+  console.log("Average: " + json.data.average / 10);
+  console.log("Fast: " + json.data.fast / 10);
+  console.log("Fastest: " + json.data.fastest / 10);
 
   return [json.data.safeLow / 10, json.data.average / 10, json.data.fast / 10, json.data.fastest / 10];
 }
@@ -147,6 +148,8 @@ function parseAccountDataResponse(json, app, cTokenList) {
 class App extends Component {
   constructor() {
     super();
+
+    this.web3 = web3;
 
     this.state = {
       displayTokens: false,

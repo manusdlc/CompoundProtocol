@@ -1,8 +1,9 @@
-import GasCosts from "../../CompoundProtocol/GasCosts.js"
-import cTokens from "../../CompoundProtocol/cTokens.js"
-import BigNumber from "bignumber.js"
+import GasCosts from "../../CompoundProtocol/GasCosts.js";
+import cTokens from "../../CompoundProtocol/cTokens.js";
+import web3 from "../../App.js";
+import BigNumber from "bignumber.js";
 
-function getcTokenContract(cTokenAddress, web3) {
+function getcTokenContract(cTokenAddress) {
     const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
     const cTokenContract = new web3.eth.Contract(cToken.abi, cToken.address);
 
@@ -44,10 +45,23 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
     }
 }
 
-function liquidateAccount() {
-    //Adjust repayAmount to the corresponding decimals
+function liquidateAccount(app) {
+    const borrowerAddress = app.state.addressToInspect;
+    const borrowedAssetAddress = app.state.tokenToRepayAddress;
 
+    //Adjust repayAmount to the corresponding underlying decimals
+    const underlyingDecimals = cTokens.find(cToken => cToken.address === app.state.tokenToRepayAddress).underlyingDecimals;
+    const repayAmountDecimals = new BigNumber(app.state.repayAmount * Math.pow(10, underlyingDecimals)).toFixed();
 
+    const collateralAddress = app.state.tokenToCollectAddress;
+    const gasPrice = app.state.gasPrices[3];
+
+    console.log("borrowerAddress: " + borrowerAddress);
+    console.log("borrowedAssetAddress: " + borrowedAssetAddress);
+    console.log("repayAmountDecimals: " + repayAmountDecimals);
+    console.log("collateralAddress: " + collateralAddress);
+    console.log("gasPrice: " + gasPrice);
+    //executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmountDecimals, collateralAddress, gasPrice);
 }
 
 function getRepayAmount(tokenToRepay, closeFactor) {
@@ -62,7 +76,7 @@ function getRepayAmount(tokenToRepay, closeFactor) {
 function getProfit(repayAmountInEth, tokenToCollect, incentive, gasPrices) {
     let profitInEth = repayAmountInEth * (incentive - 1);
     let collateralInEth = tokenToCollect.supplyInEth;
-    let txFees = (gasPrices[1] * GasCosts.liquidateBorrow) / 1e18;
+    let txFees = (gasPrices[3] * GasCosts.liquidateBorrow) / 1e9;
 
     if (repayAmountInEth * incentive <= collateralInEth) {
         return profitInEth - txFees;
@@ -107,7 +121,7 @@ function LiquidationMenu(props) {
                 <p> Repaying: {app.state.repayAmount} {String(tokenToRepay.symbol).substring(1)} </p>
                 <p> Repaying: {app.state.repayAmountInEth} ETH </p>
                 <p> Profit: {app.state.profitInEth} ETH </p>
-                <button className="LiquidationButton" onClick={() => liquidateAccount()}> Liquidate </button>
+                <button className="LiquidationButton" onClick={() => liquidateAccount(app)}> Liquidate </button>
             </div>
         </div>
     );
