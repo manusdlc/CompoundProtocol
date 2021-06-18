@@ -17,28 +17,32 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
     try {
         //Check if the borrowed asset is cETH
         if (borrowedAssetAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
-            const liquidation = await cTokenContract.methods.liquidateBorrow(borrowerAddress, collateralAddress).send({
+            await cTokenContract.methods.liquidateBorrow(borrowerAddress, collateralAddress).send({
                 from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
                 value: repayAmount,
                 gas: 400000,
                 gasPrice: gasPrice
+            }).once("transactionHash", function(hash){
+                console.log("Operation's hash: " + hash);
+            }).on("confirmation", function(confNumber, receipt, latestBlockHash){
+                console.log("Operation has been confirmed. Number: " + confNumber);
+                console.log("Receipt: " + receipt);
+            }).on("error", function(error){
+                console.error(error);
             });
-
-            if (liquidation.events && liquidation.events.Failure) {
-                const errorCode = liquidation.events.Failure.returnValues.error;
-                console.error("liquidation error, code " + errorCode);
-            }
         } else {
-            const liquidation = await cTokenContract.methods.liquidateBorrow(borrowerAddress, repayAmount, collateralAddress).send({
+            await cTokenContract.methods.liquidateBorrow(borrowerAddress, repayAmount, collateralAddress).send({
                 from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
                 gas: 400000,
                 gasPrice: gasPrice
+            }).once("transactionHash", function(hash){
+                console.log("Operation's hash: " + hash);
+            }).on("confirmation", function(confNumber, receipt, latestBlockHash){
+                console.log("Operation has been confirmed. Number: " + confNumber);
+                console.log("Receipt: " + receipt);
+            }).on("error", function(error){
+                console.error(error);
             });
-
-            if (liquidation.events && liquidation.events.Failure) {
-                const errorCode = liquidation.events.Failure.returnValues.error;
-                console.error("liquidation error, code " + errorCode);
-            }
         }
     } catch (error) {
         console.error(error);
