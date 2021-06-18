@@ -13,7 +13,6 @@ function getcTokenContract(cTokenAddress) {
 async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice) {
     const cTokenContract = getcTokenContract(borrowedAssetAddress);
 
-
     try {
         //Check if the borrowed asset is cETH
         if (borrowedAssetAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
@@ -29,6 +28,10 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
                 console.log("Receipt: " + receipt);
             }).on("error", function(error){
                 console.error(error);
+            }).then(function(receipt) {
+                console.log("The receipt: ");
+                console.log(receipt);
+                console.log("Has been mined");
             });
         } else {
             await cTokenContract.methods.liquidateBorrow(borrowerAddress, repayAmount, collateralAddress).send({
@@ -42,6 +45,10 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
                 console.log("Receipt: " + receipt);
             }).on("error", function(error){
                 console.error(error);
+            }).then(function(receipt) {
+                console.log("The receipt: ");
+                console.log(receipt);
+                console.log("Has been mined");
             });
         }
     } catch (error) {
