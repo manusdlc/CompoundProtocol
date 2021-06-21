@@ -11,13 +11,13 @@ function getcTokenContract(cTokenAddress) {
 
     return {
         contract: cTokenContract,
-        symbol: cToken.symbol
+        symbol: cToken.name
     };
 }
 
 async function getBalanceOfToken(accountAddress, cTokenAddress) {
     const { contract, symbol } = getcTokenContract(cTokenAddress);
-    const balance = await contract.methods.balanceOf(accountAddress);
+    const balance = await contract.methods.balanceOf(accountAddress).call();
 
     console.log("Account " + accountAddress + " has " + balance +  " "  + symbol);
 
