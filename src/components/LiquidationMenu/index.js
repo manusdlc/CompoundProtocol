@@ -1,58 +1,100 @@
 import GasCosts from "../../CompoundProtocol/GasCosts.js";
 import cTokens from "../../CompoundProtocol/cTokens.js";
-import web3 from "../../App.js";
+import Web3 from "web3";
 import BigNumber from "bignumber.js";
+
+export const web3 = new Web3("http://192.168.1.2:8545");
 
 function getcTokenContract(cTokenAddress) {
     const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
     const cTokenContract = new web3.eth.Contract(cToken.abi, cToken.address);
 
-    return cTokenContract;
+    return {
+        contract: cTokenContract,
+        symbol: cToken.symbol
+    };
+}
+
+async function getBalanceOfToken(accountAddress, cTokenAddress) {
+    const { contract, symbol } = getcTokenContract(cTokenAddress);
+    const balance = await contract.methods.balanceOf(accountAddress);
+
+    console.log("Account " + accountAddress + " has " + balance +  " "  + symbol);
+
+    return balance;
+}
+
+function adjustUnderlyingDecimals(cTokenAddress, repayAmount) {
+    const underlyingDecimals = cTokens.find(cToken => cToken.address === cTokenAddress).underlyingDecimals;
+    const repayAmountDecimals = new BigNumber(repayAmount).multipliedBy(BigNumber(10).exponentiatedBy(underlyingDecimals)).toFixed();
+
+    console.log("Adjusted decimals: " + repayAmountDecimals);
+
+    return repayAmountDecimals;
 }
 
 async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice) {
     const cTokenContract = getcTokenContract(borrowedAssetAddress);
+    const balance = await getBalanceOfToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
 
-    try {
-        //Check if the borrowed asset is cETH
-        if (borrowedAssetAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
-            await cTokenContract.methods.liquidateBorrow(borrowerAddress, collateralAddress).send({
-                from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
-                value: repayAmount,
-                gas: 400000,
-                gasPrice: gasPrice
-            }).once("transactionHash", function(hash){
-                console.log("Operation's hash: " + hash);
-            }).on("confirmation", function(confNumber, receipt, latestBlockHash){
-                console.log("Operation has been confirmed. Number: " + confNumber);
-                console.log("Receipt: " + receipt);
-            }).on("error", function(error){
-                console.error(error);
-            }).then(function(receipt) {
-                console.log("The receipt: ");
-                console.log(receipt);
-                console.log("Has been mined");
-            });
-        } else {
-            await cTokenContract.methods.liquidateBorrow(borrowerAddress, repayAmount, collateralAddress).send({
-                from: "0x47E01860F048c12449Bc31d1574566E7905A0880",
-                gas: 400000,
-                gasPrice: gasPrice
-            }).once("transactionHash", function(hash){
-                console.log("Operation's hash: " + hash);
-            }).on("confirmation", function(confNumber, receipt, latestBlockHash){
-                console.log("Operation has been confirmed. Number: " + confNumber);
-                console.log("Receipt: " + receipt);
-            }).on("error", function(error){
-                console.error(error);
-            }).then(function(receipt) {
-                console.log("The receipt: ");
-                console.log(receipt);
-                console.log("Has been mined");
-            });
+    if (0.9 * balance > repayAmount) {
+        const repayAmountDecimals = adjustUnderlyingDecimals(borrowedAssetAddress, repayAmount);
+
+        try {
+            //Check if the borrowed asset is cETH
+            if (borrowedAssetAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
+                await web3.eth.personal.unlockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", "")
+                    .then(console.log("Account unlocked!"));
+
+                await cTokenContract.methods.liquidateBorrow(borrowerAddress, collateralAddress).send({
+                    from: "0x5cf30c7fe084be043570b6d4f81dd7132ab3b036",
+                    value: repayAmountDecimals,
+                    gas: GasCosts.liquidateBorrow,
+                    gasPrice: gasPrice
+                }).on("transactionHash", function (hash) {
+                    console.log("Operation's hash: " + hash);
+                }).on("confirmation", function (confNumber, receipt, latestBlockHash) {
+                    console.log("Operation has been confirmed. Number: " + confNumber);
+                    console.log("Receipt: " + receipt);
+                }).on("error", function (error) {
+                    console.error(error);
+                }).then(function (receipt) {
+                    console.log("The receipt: ");
+                    console.log(receipt);
+                    console.log("Has been mined");
+                });
+
+                await web3.eth.personal.lockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036")
+                    .then(console.log("Account locked!"));
+            } else {
+                await web3.eth.personal.unlockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", "")
+                    .then(console.log("Account unlocked!"));
+
+                await cTokenContract.methods.liquidateBorrow(borrowerAddress, repayAmountDecimals, collateralAddress).send({
+                    from: "0x5cf30c7fe084be043570b6d4f81dd7132ab3b036",
+                    gas: GasCosts.liquidateBorrow,
+                    gasPrice: gasPrice
+                }).on("transactionHash", function (hash) {
+                    console.log("Operation's hash: " + hash);
+                }).on("confirmation", function (confNumber, receipt, latestBlockHash) {
+                    console.log("Operation has been confirmed. Number: " + confNumber);
+                    console.log("Receipt: " + receipt);
+                }).on("error", function (error) {
+                    console.error(error);
+                }).then(function (receipt) {
+                    console.log("The receipt: ");
+                    console.log(receipt);
+                    console.log("Has been mined");
+                });
+
+                await web3.eth.personal.lockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036")
+                    .then(console.log("Account locked!"));
+            }
+        } catch (error) {
+            console.error(error);
         }
-    } catch (error) {
-        console.error(error);
+    } else {
+        console.log("Insufficient funds");
     }
 }
 
@@ -60,19 +102,18 @@ function liquidateAccount(app) {
     const borrowerAddress = app.state.addressToInspect;
     const borrowedAssetAddress = app.state.tokenToRepayAddress;
 
-    //Adjust repayAmount to the corresponding underlying decimals
-    const underlyingDecimals = cTokens.find(cToken => cToken.address === app.state.tokenToRepayAddress).underlyingDecimals;
-    const repayAmountDecimals = new BigNumber(app.state.repayAmount * Math.pow(10, underlyingDecimals)).toFixed();
+    const repayAmount = app.state.repayAmount;
 
     const collateralAddress = app.state.tokenToCollectAddress;
-    const gasPrice = app.state.gasPrices[3];
+    const gasPrice = BigNumber(app.state.gasPrices[3]).multipliedBy(BigNumber(10).exponentiatedBy(9)).toFixed();
 
     console.log("borrowerAddress: " + borrowerAddress);
     console.log("borrowedAssetAddress: " + borrowedAssetAddress);
-    console.log("repayAmountDecimals: " + repayAmountDecimals);
+    console.log("repayAmount: " + repayAmount);
     console.log("collateralAddress: " + collateralAddress);
     console.log("gasPrice: " + gasPrice);
-    //executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmountDecimals, collateralAddress, gasPrice);
+
+    executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice);
 }
 
 function getRepayAmount(tokenToRepay, closeFactor) {

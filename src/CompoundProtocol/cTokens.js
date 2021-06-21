@@ -8160,7 +8160,7 @@ const cTokens = [
     {
         name: "cSAI",
         address: "0xf5dce57282a584d2746faf1593d3121fcac444dc",
-        underlyingDecimals: 0,
+        underlyingDecimals: 18,
         abi: [
             {
                 "constant": true,
