@@ -23,7 +23,7 @@ function AccountsTable(props) {
                 </thead>
                 <tbody>
                     {
-                        props.accounts.map((account) => {
+                        props.accounts.slice(0, 50).map((account) => {
                             return (
                                 <tr key={account.address}>
                                     <td> {account.address} </td>

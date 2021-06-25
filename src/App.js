@@ -6,6 +6,7 @@ import BalanceTable from "./components/BalanceTable/index.js";
 import LiquidationMenu from "./components/LiquidationMenu/index.js";
 import Comptroller from "./CompoundProtocol/Comptroller.js";
 import GasCosts from "./CompoundProtocol/GasCosts.js";
+import OldcTokens from "./CompoundProtocol/OldcTokens.js";
 import OpenPriceFeed from "./CompoundProtocol/OpenPriceFeed.js";
 import ERC20 from "./CompoundProtocol/ERC20.js";
 import axios from "axios";
@@ -27,9 +28,9 @@ const gasURL = "https://ethgasstation.info/api/ethgasAPI.json?api-key=ba3b8b16c8
 const accountURL = "https://api.compound.finance/api/v2/account";
 const cTokenURL = "https://api.compound.finance/api/v2/ctoken";
 const accountRequestData = {
-  max_health: { value: "1.0" },
-  min_borrow_value_in_eth: { value: "0.002" },
-  page_size: 100
+  max_health: { value: "1.01" },
+  min_borrow_value_in_eth: { value: "0.001" },
+  page_size: 500
 };
 
 function parseGasResponse(json) {
@@ -65,6 +66,7 @@ async function parsecTokenDataResponse(json) {
 
 function getTokens(accountcTokens, cTokenList) {
   let maxSupplyInEth = 0;
+  let maxSupplyAddress = "";
   let maxBorrowInEth = 0;
 
   const accountcTokenList = accountcTokens.map(token => {
@@ -76,7 +78,10 @@ function getTokens(accountcTokens, cTokenList) {
     const borrowInEth = borrow * underlyingPriceInEth;
 
     if (borrowInEth > maxBorrowInEth) maxBorrowInEth = borrowInEth;
-    if (supplyInEth > maxSupplyInEth) maxSupplyInEth = supplyInEth;
+    if (supplyInEth > maxSupplyInEth) {
+      maxSupplyInEth = supplyInEth;
+      maxSupplyAddress = token.address;
+    }
 
     return {
       address: token.address,
@@ -91,18 +96,24 @@ function getTokens(accountcTokens, cTokenList) {
 
   return {
     maxSupplyInEth: maxSupplyInEth,
+    maxSupplyAddress: maxSupplyAddress,
     maxBorrowInEth: maxBorrowInEth,
     tokens: accountcTokenList
   }
 }
 
 
-function getProfitPerToken(tokens, app, maxSupplyInEth) {
+function getProfitPerToken(tokens, app, maxSupplyInEth, maxSupplyAddress) {
   let maxProfitInEth = 0;
   const gasFees = (app.state.gasPrices[3] * GasCosts.liquidateBorrow) / 1e9;
 
   const profitPerTokenInEth = tokens.filter(token => token.borrow > 0).map(token => {
-    let liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
+    let liquidableAmountInEth;
+    if (token.address === maxSupplyAddress && OldcTokens.includes(token.address)) {
+      liquidableAmountInEth = 0;
+    } else {
+      liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
+    }
 
     while (liquidableAmountInEth > maxSupplyInEth) liquidableAmountInEth -= 0.0001;
 
@@ -125,8 +136,8 @@ function getProfitPerToken(tokens, app, maxSupplyInEth) {
 
 function parseAccountDataResponse(json, app, cTokenList) {
   const accountList = json.data.accounts.map(account => {
-    const { maxSupplyInEth, maxBorrowInEth, tokens } = getTokens(account.tokens, cTokenList);
-    const { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth);
+    const { maxSupplyInEth, maxSupplyAddress, maxBorrowInEth, tokens } = getTokens(account.tokens, cTokenList);
+    const { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth, maxSupplyAddress);
 
     return {
       address: account.address,
@@ -142,6 +153,9 @@ function parseAccountDataResponse(json, app, cTokenList) {
   });
 
   accountList.sort((a, b) => b.maxProfitInEth - a.maxProfitInEth);
+
+  console.log(accountList.length);
+
   return accountList;
 }
 
