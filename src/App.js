@@ -28,7 +28,7 @@ const gasURL = "https://ethgasstation.info/api/ethgasAPI.json?api-key=ba3b8b16c8
 const accountURL = "https://api.compound.finance/api/v2/account";
 const cTokenURL = "https://api.compound.finance/api/v2/ctoken";
 const accountRequestData = {
-  max_health: { value: "1.01" },
+  max_health: { value: "1.0" },
   min_borrow_value_in_eth: { value: "0.001" },
   page_size: 500
 };
@@ -53,6 +53,7 @@ async function parsecTokenDataResponse(json) {
         symbol: cToken.symbol,
         collateralFactor: cToken.collateral_factor.value,
         underlyingPriceInEth: cToken.underlying_price.value,
+        underlyingAddress: cToken.underlying_address,
         allowance: tokenAllowance
       };
     });
