@@ -173,7 +173,7 @@ class App extends Component {
       tokenToRepayAddress: "",
       tokenToCollectAddress: "",
       repayAmount: "",
-      repayAMountInEth: "",
+      repayAmountInEth: "",
       profitInEth: "",
 
       ethToUsd: "",
@@ -191,6 +191,7 @@ class App extends Component {
     this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
     this.refreshIncentive = this.refreshIncentive.bind(this);
     this.refreshGasPrices = this.refreshGasPrices.bind(this);
+    this.refreshAccountList = this.refreshAccountList.bind(this);
     this.refreshcTokenAndAccountList = this.refreshcTokenAndAccountList.bind(this);
   }
 
@@ -200,6 +201,8 @@ class App extends Component {
     this.refreshIncentive();
     this.refreshGasPrices();
     this.refreshcTokenAndAccountList();
+
+    setInterval(this.refreshAccountList, 10000);
   }
 
   async refreshEthToUsd() {
@@ -256,6 +259,24 @@ class App extends Component {
     }
   }
 
+  async refreshAccountList() {
+    if (typeof this.state.cTokens === "undefined") {
+      console.log("cToken list is empty");
+      return;
+    }
+
+    const cTokenList = this.state.cTokens;
+    console.log(cTokenList);
+
+    console.log("Refreshing account list");
+    const accountDataResponse = await axios.post(accountURL, accountRequestData);
+    const accountList = parseAccountDataResponse(accountDataResponse, this, cTokenList);
+
+    this.setState({
+      accounts: accountList
+    });
+  }
+
   async refreshcTokenAndAccountList() {
     try {
       //Parsing account data requires data from the cToken list
@@ -270,9 +291,9 @@ class App extends Component {
       this.setState({
         cTokens: cTokenList,
         accounts: accountList
-      })
+      });
 
-      console.log("Done refreshing cToken and account lists")
+      console.log("Done refreshing cToken and account lists");
     } catch (error) {
       console.error(error);
     }
