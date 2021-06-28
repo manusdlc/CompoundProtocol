@@ -3,6 +3,7 @@ const cTokens = [
         name: "cBAT",
         address: "0x6c8c6b02e7b2be14d4fa6022dfd6d75921d90e4e",
         underlyingDecimals: 18,
+        underlyingAddress: "0x0d8775f648430679a709e98d2b0cb6250d2887ef",
         abi: [
             {
                 "constant": true,
@@ -1243,6 +1244,7 @@ const cTokens = [
         name: "cCOMP",
         address: "0x70e36f6bf80a52b3b46b3af8e106cc0ed743e8e4",
         underlyingDecimals: 0,
+        underlyingAddress: "0xc00e94cb662c3520282e6f5717214004a7f26888",
         abi: [
             {
                 "inputs": [
@@ -2712,6 +2714,7 @@ const cTokens = [
         name: "cDAI",
         address: "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643",
         underlyingDecimals: 18,
+        underlyingAddress: "0x6b175474e89094c44da98b954eedeac495271d0f",
         abi: [
             {
                 "inputs": [
@@ -4249,6 +4252,7 @@ const cTokens = [
         name: "cETH",
         address: "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5",
         underlyingDecimals: 18,
+        underlyingAddress: "",
         abi: [
             {
                 "constant": true,
@@ -5437,6 +5441,7 @@ const cTokens = [
         name: "cLINK",
         address: "0xface851a4921ce59e912d19329929ce6da6eb0c7",
         underlyingDecimals: 0,
+        underlyingAddress: "0x514910771af9ca656af840dff83e8264ecf986ca",
         abi: [
             {
                 "inputs": [
@@ -6921,6 +6926,7 @@ const cTokens = [
         name: "cREP",
         address: "0x158079ee67fce2f58472a96584a73c7ab9ac95c1",
         underlyingDecimals: 18,
+        underlyingAddress: "0x1985365e9f78359a9b6ad760e32412f4a445e862",
         abi: [
             {
                 "constant": true,
@@ -8161,6 +8167,7 @@ const cTokens = [
         name: "cSAI",
         address: "0xf5dce57282a584d2746faf1593d3121fcac444dc",
         underlyingDecimals: 18,
+        underlyingAddress: "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
         abi: [
             {
                 "constant": true,
@@ -9401,6 +9408,7 @@ const cTokens = [
         name: "cTUSD",
         address: "0x12392f67bdf24fae0af363c24ac620a2f67dad86",
         underlyingDecimals: 0,
+        underlyingAddress: "0x0000000000085d4780b73119b644ae5ecd22b376",
         abi: [
             {
                 "inputs": [
@@ -10870,6 +10878,7 @@ const cTokens = [
         name: "cUNI",
         address: "0x35a18000230da775cac24873d00ff85bccded550",
         underlyingDecimals: 0,
+        underlyingAddress: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
         abi: [
             {
                 "inputs": [
@@ -12407,6 +12416,7 @@ const cTokens = [
         name: "cUSDC",
         address: "0x39aa39c021dfbae8fac545936693ac917d5e7563",
         underlyingDecimals: 6,
+        underlyingAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
         abi: [
             {
                 "constant": true,
@@ -13647,6 +13657,7 @@ const cTokens = [
         name: "cUSDT",
         address: "0xf650c3d88d12db855b8bf7d11be6c55a4e07dcc9",
         underlyingDecimals: 6,
+        underlyingAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
         abi: [
             {
                 "inputs": [
@@ -15184,6 +15195,7 @@ const cTokens = [
         name: "cWBTC",
         address: "0xc11b1268c1a384e55c48c2391d8d480264a3a7f4",
         underlyingDecimals: 8,
+        underlyingAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
         abi: [
             {
                 "constant": true,
@@ -16424,6 +16436,7 @@ const cTokens = [
         name: "cWBTC2",
         address: "0xccf4429db6322d5c611ee964527d42e5d685dd6a",
         underlyingDecimals: 8,
+        underlyingAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
         abi: [
             {
                 "inputs": [
@@ -17908,6 +17921,7 @@ const cTokens = [
         name: "cZRX",
         address: "0xb3319f5d18bc0d84dd1b4825dcde5d5f7266d407",
         underlyingDecimals: 18,
+        underlyingAddress: "0xe41d2489571d322189246dafa5ebde1f4699f498",
         abi: [
             {
                 "constant": true,
