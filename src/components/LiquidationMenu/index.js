@@ -114,7 +114,9 @@ async function getBalanceOfUnderlyingToken(accountAddress, cTokenAddress) {
     //Check if we are dealing with cETH
     if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
         try {
-            const balance = await web3.eth.getBalance(accountAddress).call();
+            const balance = await web3.eth.getBalance(accountAddress);
+            console.log("Account " + accountAddress + " has balance of " + balance);
+            
             return balance
         } catch (error) {
             console.error(error);
@@ -178,7 +180,7 @@ async function liquidateAccount(app) {
         console.log("Insufficient allowance");
     } else {
         console.log("Executing liquidation...");
-        executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice);
+        //executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice);
     }
 }
 
@@ -191,7 +193,7 @@ function getRepayAmountSlider(tokenToRepay, closeFactor) {
     };
 }
 
-function getRepayAmountBox(tokenToRepay, closeFactor) {
+function getRepayAmountBox(tokenToRepay) {
     let box = document.getElementById("liquidationBox");
 
     return {
@@ -224,7 +226,7 @@ function updateValuesSlider(app, tokenToRepay, tokenToCollect) {
 }
 
 function updateValuesBox(app, tokenToRepay, tokenToCollect) {
-    let { repayAmount, repayAmountInEth } = getRepayAmountBox(tokenToRepay, app.state.closeFactor);
+    let { repayAmount, repayAmountInEth } = getRepayAmountBox(tokenToRepay);
     let profitInEth = getProfit(repayAmountInEth, tokenToCollect, app.state.incentive, app.state.gasPrices);
 
     app.setState({
