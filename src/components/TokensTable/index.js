@@ -11,6 +11,7 @@ function TokensTable(props) {
                         <th> Collateral Factor </th>
                         <th> Underlying Price (Eth) </th>
                         <th> Allowance </th>
+                        <th> Underlying address </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -23,6 +24,7 @@ function TokensTable(props) {
                                     <td> {cToken.collateralFactor} </td>
                                     <td> {cToken.underlyingPriceInEth} </td>
                                     <td> {cToken.allowance} </td>
+                                    <td> {cToken.underlyingAddress} </td>
                                 </tr>
                             );
                         }
