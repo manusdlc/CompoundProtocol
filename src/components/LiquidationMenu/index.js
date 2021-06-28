@@ -1,9 +1,17 @@
 import GasCosts from "../../CompoundProtocol/GasCosts.js";
 import cTokens from "../../CompoundProtocol/cTokens.js";
+import ERC20 from "../../CompoundProtocol/ERC20";
 import Web3 from "web3";
 import BigNumber from "bignumber.js";
 
 export const web3 = new Web3("http://192.168.1.2:8545");
+
+
+function getERC20Contract(ERC20Address) {
+    const contract = new web3.eth.Contract(ERC20.abi, ERC20Address);
+
+    return contract;
+}
 
 function getcTokenContract(cTokenAddress) {
     const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
@@ -39,7 +47,7 @@ function adjustUnderlyingDecimals(cTokenAddress, repayAmount) {
 //}
 
 async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice) {
-    const { contract,  } = getcTokenContract(borrowedAssetAddress);
+    const { contract, } = getcTokenContract(borrowedAssetAddress);
 
     //Adjust to the number of decimals of the underlying token
     const repayAmountDecimals = adjustUnderlyingDecimals(borrowedAssetAddress, repayAmount);
@@ -102,22 +110,32 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
     }
 }
 
-async function getBalanceOfToken(accountAddress, cTokenAddress) {
-    const { contract, symbol } = getcTokenContract(cTokenAddress);
-    const balance = await contract.methods.balanceOf(accountAddress).call();
+async function getBalanceOfUnderlyingToken(accountAddress, cTokenAddress) {
+    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
+    const contract = getERC20Contract(cToken.underlyingAddress);
 
-    console.log("Account " + accountAddress + " has balance of " + balance + " " + symbol);
+    try {
+        const balance = await contract.methods.balanceOf(accountAddress).call();
+        console.log("Account " + accountAddress + " has balance of " + balance);
 
-    return balance;
+        return balance;
+    } catch (error) {
+        console.error(error);
+    }
 }
 
-async function getAllowanceOfToken(accountAddress, cTokenAddress) {
-    const { contract, symbol } = getcTokenContract(cTokenAddress);
-    const allowance = await contract.methods.allowance(accountAddress, cTokenAddress).call();
+async function getAllowanceOfUnderlyingToken(accountAddress, cTokenAddress) {
+    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
+    const contract = getERC20Contract(cToken.underlyingAddress);
 
-    console.log("Account " + accountAddress + " has allowance of " + allowance + " " + symbol);
+    try {
+        const allowance = await contract.methods.allowance(accountAddress, cTokenAddress).call();
+        console.log("Account " + accountAddress + " has allowance of " + allowance);
 
-    return allowance;
+        return allowance;
+    } catch (error) {
+        console.error(error);
+    }
 }
 
 async function liquidateAccount(app) {
@@ -135,26 +153,35 @@ async function liquidateAccount(app) {
     console.log("collateralAddress: " + collateralAddress);
     console.log("gasPrice: " + gasPrice);
 
-    const balance = await getBalanceOfToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
-    const allowance = await getAllowanceOfToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
+    const balance = await getBalanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
+    const allowance = await getAllowanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
 
-    //if (0.9 * balance < repayAmount) {
-    //    console.log("Insufficient funds");
-    //} else if (allowance < repayAmount) {
-    //    console.log("Insufficient allowance");
-    //} else {
-    console.log("Executing liquidation...");
-    executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice);
-    //}
+    if (0.9 * balance < repayAmount) {
+        console.log("Insufficient funds");
+    } else if (allowance < repayAmount) {
+        console.log("Insufficient allowance");
+    } else {
+        console.log("Executing liquidation...");
+        executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmount, collateralAddress, gasPrice);
+    }
 }
 
-function getRepayAmount(tokenToRepay, closeFactor) {
+function getRepayAmountSlider(tokenToRepay, closeFactor) {
     let slider = document.getElementById("liquidationSlider");
 
     return {
         repayAmount: (slider.value * tokenToRepay.borrow * closeFactor) / 100,
         repayAmountInEth: (slider.value * tokenToRepay.borrowInEth * closeFactor) / 100
     };
+}
+
+function getRepayAmountBox(tokenToRepay, closeFactor) {
+    let box = document.getElementById("liquidationBox");
+
+    return {
+        repayAmount: box.value,
+        repayAmountInEth: (box.value * tokenToRepay.borrowInEth) / tokenToRepay.borrow
+    }
 }
 
 function getProfit(repayAmountInEth, tokenToCollect, incentive, gasPrices) {
@@ -169,8 +196,19 @@ function getProfit(repayAmountInEth, tokenToCollect, incentive, gasPrices) {
     }
 }
 
-function updateValues(app, tokenToRepay, tokenToCollect) {
-    let { repayAmount, repayAmountInEth } = getRepayAmount(tokenToRepay, app.state.closeFactor);
+function updateValuesSlider(app, tokenToRepay, tokenToCollect) {
+    let { repayAmount, repayAmountInEth } = getRepayAmountSlider(tokenToRepay, app.state.closeFactor);
+    let profitInEth = getProfit(repayAmountInEth, tokenToCollect, app.state.incentive, app.state.gasPrices);
+
+    app.setState({
+        repayAmount: repayAmount,
+        repayAmountInEth: repayAmountInEth,
+        profitInEth: profitInEth
+    });
+}
+
+function updateValuesBox(app, tokenToRepay, tokenToCollect) {
+    let { repayAmount, repayAmountInEth } = getRepayAmountBox(tokenToRepay, app.state.closeFactor);
     let profitInEth = getProfit(repayAmountInEth, tokenToCollect, app.state.incentive, app.state.gasPrices);
 
     app.setState({
@@ -201,7 +239,8 @@ function LiquidationMenu(props) {
                 </div>
             </div>
             <div className="LiquidationDetails">
-                <input type="range" className="slider" min="0" max="100" id="liquidationSlider" onInput={() => updateValues(app, tokenToRepay, tokenToCollect)} />
+                <input type="text" placeholder="Repay" id="liquidationBox" onKeyUp={() => updateValuesBox(app, tokenToRepay, tokenToCollect)}></input>
+                <input type="range" className="slider" min="0" max="100" id="liquidationSlider" onInput={() => updateValuesSlider(app, tokenToRepay, tokenToCollect)} />
                 <p> Repaying: {app.state.repayAmount} {String(tokenToRepay.symbol).substring(1)} </p>
                 <p> Repaying: {app.state.repayAmountInEth} ETH </p>
                 <p> Profit: {app.state.profitInEth} ETH </p>
