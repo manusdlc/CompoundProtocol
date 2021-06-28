@@ -111,6 +111,17 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
 }
 
 async function getBalanceOfUnderlyingToken(accountAddress, cTokenAddress) {
+    //Check if we are dealing with cETH
+    if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
+        try {
+            const balance = await web3.eth.getBalance(accountAddress).call();
+            return balance
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+
     const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
     const contract = getERC20Contract(cToken.underlyingAddress);
 
@@ -125,6 +136,11 @@ async function getBalanceOfUnderlyingToken(accountAddress, cTokenAddress) {
 }
 
 async function getAllowanceOfUnderlyingToken(accountAddress, cTokenAddress) {
+    //Check if we are dealing with cETH
+    if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
+        return Number.MAX_SAFE_INTEGER;
+    }
+
     const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
     const contract = getERC20Contract(cToken.underlyingAddress);
 
