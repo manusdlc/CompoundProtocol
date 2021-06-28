@@ -266,7 +266,7 @@ class App extends Component {
     }
 
     const cTokenList = this.state.cTokens;
-    console.log(cTokenList);
+    //console.log(cTokenList);
 
     console.log("Refreshing account list");
     const accountDataResponse = await axios.post(accountURL, accountRequestData);
