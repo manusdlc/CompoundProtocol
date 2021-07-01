@@ -9,6 +9,7 @@ import GasCosts from "./CompoundProtocol/GasCosts.js";
 import OldcTokens from "./CompoundProtocol/OldcTokens.js";
 import OpenPriceFeed from "./CompoundProtocol/OpenPriceFeed.js";
 import ERC20 from "./CompoundProtocol/ERC20.js";
+import lookForLiquidations from "./CompoundProtocol/Liquidator.js";
 import axios from "axios";
 import Web3 from "web3";
 
@@ -69,6 +70,7 @@ function getTokens(accountcTokens, cTokenList) {
   let maxSupplyInEth = 0;
   let maxSupplyAddress = "";
   let maxBorrowInEth = 0;
+  let maxBorrowAddress = "";
 
   const accountcTokenList = accountcTokens.map(token => {
     const underlyingPriceInEth = cTokenList.find(cToken => cToken.address === token.address).underlyingPriceInEth;
@@ -78,7 +80,10 @@ function getTokens(accountcTokens, cTokenList) {
     const supplyInEth = supply * underlyingPriceInEth;
     const borrowInEth = borrow * underlyingPriceInEth;
 
-    if (borrowInEth > maxBorrowInEth) maxBorrowInEth = borrowInEth;
+    if (borrowInEth > maxBorrowInEth) {
+      maxBorrowInEth = borrowInEth;
+      maxBorrowAddress = token.address;
+    }
     if (supplyInEth > maxSupplyInEth) {
       maxSupplyInEth = supplyInEth;
       maxSupplyAddress = token.address;
@@ -99,6 +104,7 @@ function getTokens(accountcTokens, cTokenList) {
     maxSupplyInEth: maxSupplyInEth,
     maxSupplyAddress: maxSupplyAddress,
     maxBorrowInEth: maxBorrowInEth,
+    maxBorrowAddress: maxBorrowAddress,
     tokens: accountcTokenList
   }
 }
@@ -137,7 +143,7 @@ function getProfitPerToken(tokens, app, maxSupplyInEth, maxSupplyAddress) {
 
 function parseAccountDataResponse(json, app, cTokenList) {
   const accountList = json.data.accounts.map(account => {
-    const { maxSupplyInEth, maxSupplyAddress, maxBorrowInEth, tokens } = getTokens(account.tokens, cTokenList);
+    const { maxSupplyInEth, maxSupplyAddress, maxBorrowInEth, maxBorrowAddress, tokens } = getTokens(account.tokens, cTokenList);
     const { maxProfitInEth, profitPerTokenInEth } = getProfitPerToken(tokens, app, maxSupplyInEth, maxSupplyAddress);
 
     return {
@@ -148,7 +154,9 @@ function parseAccountDataResponse(json, app, cTokenList) {
       tokens: tokens,
       profitPerTokenInEth: profitPerTokenInEth,
       maxSupplyInEth: maxSupplyInEth,
+      maxSupplyAddress: maxSupplyAddress,
       maxBorrowInEth: maxBorrowInEth,
+      maxBorrowAddress: maxBorrowAddress,
       maxProfitInEth: maxProfitInEth
     }
   });
@@ -207,7 +215,7 @@ class App extends Component {
 
   async refreshEthToUsd() {
     try {
-      let ethToUsd = await priceFeed.methods.getUnderlyingPrice("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5").call() / 1e18;
+      const ethToUsd = await priceFeed.methods.getUnderlyingPrice("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5").call() / 1e18;
       console.log(ethToUsd);
 
       this.setState({
@@ -243,7 +251,6 @@ class App extends Component {
     } catch (error) {
       console.error(error);
     }
-
   }
 
   async refreshGasPrices() {
@@ -260,21 +267,28 @@ class App extends Component {
   }
 
   async refreshAccountList() {
-    if (typeof this.state.cTokens === "undefined") {
-      console.log("cToken list is empty");
-      return;
+    try {
+      if (typeof this.state.cTokens === "undefined") {
+        console.log("cToken list is empty");
+        return;
+      }
+
+      const cTokenList = this.state.cTokens;
+
+      console.log("Refreshing account list");
+      const accountDataResponse = await axios.post(accountURL, accountRequestData);
+      const accountList = parseAccountDataResponse(accountDataResponse, this, cTokenList);
+
+      this.setState({
+        accounts: accountList
+      });
+
+      console.log("Done refreshing account list");
+
+      lookForLiquidations(accountList, this);
+    } catch (error) {
+      console.error(error);
     }
-
-    const cTokenList = this.state.cTokens;
-    //console.log(cTokenList);
-
-    console.log("Refreshing account list");
-    const accountDataResponse = await axios.post(accountURL, accountRequestData);
-    const accountList = parseAccountDataResponse(accountDataResponse, this, cTokenList);
-
-    this.setState({
-      accounts: accountList
-    });
   }
 
   async refreshcTokenAndAccountList() {
