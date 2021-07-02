@@ -122,7 +122,7 @@ function getProfitPerToken(tokens, app, maxSupplyInEth, maxSupplyAddress) {
       liquidableAmountInEth = token.supplyInEth * app.state.closeFactor;
     }
 
-    while (liquidableAmountInEth > maxSupplyInEth) liquidableAmountInEth -= 0.0001;
+    while (liquidableAmountInEth > maxSupplyInEth) liquidableAmountInEth = maxSupplyInEth;
 
     const profitInEth = liquidableAmountInEth * (app.state.incentive - 1);
     if (profitInEth > maxProfitInEth) maxProfitInEth = profitInEth;
