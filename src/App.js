@@ -210,7 +210,7 @@ class App extends Component {
     this.refreshGasPrices();
     this.refreshcTokenAndAccountList();
 
-    setInterval(this.refreshAccountList, 10000);
+    setInterval(this.refreshAccountList, 2000);
   }
 
   async refreshEthToUsd() {
