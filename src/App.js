@@ -5,6 +5,7 @@ import TokensTable from "./components/TokensTable/index.js";
 import BalanceTable from "./components/BalanceTable/index.js";
 import LiquidationMenu from "./components/LiquidationMenu/index.js";
 import Comptroller from "./CompoundProtocol/Comptroller.js";
+import cTokens from "./CompoundProtocol/cTokens.js";
 import GasCosts from "./CompoundProtocol/GasCosts.js";
 import OldcTokens from "./CompoundProtocol/OldcTokens.js";
 import OpenPriceFeed from "./CompoundProtocol/OpenPriceFeed.js";
@@ -174,6 +175,8 @@ class App extends Component {
 
     this.web3 = web3;
 
+    this.balances = new Map();
+
     this.state = {
       displayTokens: false,
 
@@ -195,6 +198,8 @@ class App extends Component {
       accounts: []
     };
 
+    this.getBalanceOfUnderlyingToken = this.getBalanceOfUnderlyingToken.bind(this);
+    this.refreshBalances = this.refreshBalances.bind(this);
     this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
     this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
     this.refreshIncentive = this.refreshIncentive.bind(this);
@@ -209,8 +214,47 @@ class App extends Component {
     this.refreshIncentive();
     this.refreshGasPrices();
     this.refreshcTokenAndAccountList();
+    this.refreshBalances();
 
     setInterval(this.refreshAccountList, 2000);
+  }
+
+  async getBalanceOfUnderlyingToken(cTokenAddress) {
+    //Check if we are dealing with cETH
+    if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
+        try {
+            const balance = await web3.eth.getBalance("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036");
+            console.log("Account has balance of " + balance + " ETH");
+
+            return balance
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+
+    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
+    const contract = new web3.eth.Contract(ERC20.abi, cToken.underlyingAddress);
+
+    try {
+        const balance = await contract.methods.balanceOf("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036").call();
+        console.log("Account has balance of " + balance + " " + cToken.name.substring(1));
+
+        return balance;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+  async refreshBalances() {
+    cTokens.forEach(async cToken => {
+        const balance = await this.getBalanceOfUnderlyingToken(cToken.address);
+        this.balances.set(cToken.address, balance);
+    });
+
+    this.balances.forEach((values, keys) => {
+      console.log(values + " of " + keys);
+    });
   }
 
   async refreshEthToUsd() {
