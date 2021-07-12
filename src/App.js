@@ -176,6 +176,7 @@ class App extends Component {
     this.web3 = web3;
 
     this.balances = new Map();
+    this.allowances = new Map();
 
     this.state = {
       displayTokens: false,
@@ -198,6 +199,8 @@ class App extends Component {
       accounts: []
     };
 
+    this.getAllowanceOfUnderlyingToken = this.getAllowanceOfUnderlyingToken.bind(this);
+    this.refreshAllowances = this.refreshAllowances.bind(this);
     this.getBalanceOfUnderlyingToken = this.getBalanceOfUnderlyingToken.bind(this);
     this.refreshBalances = this.refreshBalances.bind(this);
     this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
@@ -215,21 +218,67 @@ class App extends Component {
     this.refreshGasPrices();
     this.refreshcTokenAndAccountList();
     this.refreshBalances();
+    this.refreshAllowances();
 
     setInterval(this.refreshAccountList, 2000);
   }
 
+  /**
+   * Takes account and token address as input. Returns the allowance of the underlying token in that account.
+   * Checks if the token is cETH, since ETH is not an ERC-20 token and it has no allowance.
+   *  
+   * @param cTokenAddress 
+   * @returns 
+   */
+  async getAllowanceOfUnderlyingToken(cTokenAddress) {
+    //Check if we are dealing with cETH
+    if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
+      return Number.MAX_SAFE_INTEGER;
+    }
+
+    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
+    const contract = new web3.eth.Contract(ERC20.abi, cToken.underlyingAddress);
+
+    try {
+      const allowance = await contract.methods.allowance("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", cTokenAddress).call();
+      console.log("Account 0x5cf30c7fe084be043570b6d4f81dd7132ab3b036 has allowance of " + allowance);
+
+      return allowance;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  refreshAllowances() {
+    cTokens.forEach(async cToken => {
+      const allowance = await this.getAllowanceOfUnderlyingToken(cToken.address);
+      this.allowances.set(cToken.address, allowance);
+    });
+
+    this.allowances.forEach((values, keys) => {
+      console.log(values + " of " + keys);
+    });
+  }
+
+
+  /**
+   * Takes account and token address as input. Returns the balance of that token in that account.
+   * Checks if the token is cETH, since ETH is not an ERC-20 token and getting its corresponding balance is done differently.
+   * 
+   * @param cTokenAddress 
+   * @returns                 balance
+   */
   async getBalanceOfUnderlyingToken(cTokenAddress) {
     //Check if we are dealing with cETH
     if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
-        try {
-            const balance = await web3.eth.getBalance("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036");
-            console.log("Account has balance of " + balance + " ETH");
+      try {
+        const balance = await web3.eth.getBalance("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036");
+        console.log("Account has balance of " + balance + " ETH");
 
-            return balance
-        } catch (error) {
-            console.error(error);
-        }
+        return balance
+      } catch (error) {
+        console.error(error);
+      }
     }
 
 
@@ -237,19 +286,19 @@ class App extends Component {
     const contract = new web3.eth.Contract(ERC20.abi, cToken.underlyingAddress);
 
     try {
-        const balance = await contract.methods.balanceOf("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036").call();
-        console.log("Account has balance of " + balance + " " + cToken.name.substring(1));
+      const balance = await contract.methods.balanceOf("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036").call();
+      console.log("Account has balance of " + balance + " " + cToken.name.substring(1));
 
-        return balance;
+      return balance;
     } catch (error) {
-        console.error(error);
+      console.error(error);
     }
-}
+  }
 
-  async refreshBalances() {
+  refreshBalances() {
     cTokens.forEach(async cToken => {
-        const balance = await this.getBalanceOfUnderlyingToken(cToken.address);
-        this.balances.set(cToken.address, balance);
+      const balance = await this.getBalanceOfUnderlyingToken(cToken.address);
+      this.balances.set(cToken.address, balance);
     });
 
     this.balances.forEach((values, keys) => {

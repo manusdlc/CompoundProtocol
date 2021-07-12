@@ -3,9 +3,9 @@ import ERC20 from "/home/robotito/Crypto/compound_liquidator/src/CompoundProtoco
 import GasCosts from "/home/robotito/Crypto/compound_liquidator/src/CompoundProtocol/GasCosts.js";
 //import web3 from "../App.js";
 import BigNumber from "bignumber.js";
-
 import Web3 from "web3";
-export const web3 = new Web3("http://192.168.1.2:8545");
+
+const web3 = new Web3("http://192.168.1.2:8545");
 
 async function lookForLiquidations(accountList, app) {
     app.refreshGasPrices();
@@ -21,67 +21,6 @@ async function lookForLiquidations(accountList, app) {
     }
 }
 export default lookForLiquidations;
-
-/**
- * Takes account and token address as input. Returns the allowance of the underlying token in that account.
- * Checks if the token is cETH, since ETH is not an ERC-20 token and it has no allowance.
- * @param accountAddress 
- * @param cTokenAddress 
- * @returns 
- */
-async function getAllowanceOfUnderlyingToken(accountAddress, cTokenAddress) {
-    //Check if we are dealing with cETH
-    if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
-        return Number.MAX_SAFE_INTEGER;
-    }
-
-    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
-    const contract = new web3.eth.Contract(ERC20.abi, cToken.underlyingAddress);
-
-    try {
-        const allowance = await contract.methods.allowance(accountAddress, cTokenAddress).call();
-        console.log("Account " + accountAddress + " has allowance of " + allowance);
-
-        return allowance;
-    } catch (error) {
-        console.error(error);
-    }
-}
-
-/**
- * Takes account and token address as input. Returns the balance of that token in that account.
- * Checks if the token is cETH, since ETH is not an ERC-20 token and getting its corresponding balance is done differently.
- * 
- * @param accountAddress 
- * @param cTokenAddress 
- * @returns                 balance
- */
-async function getBalanceOfUnderlyingToken(accountAddress, cTokenAddress) {
-    //Check if we are dealing with cETH
-    if (cTokenAddress === "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5") {
-        try {
-            const balance = await web3.eth.getBalance(accountAddress);
-            console.log("Account " + accountAddress + " has balance of " + balance);
-
-            return balance
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-
-    const cToken = cTokens.find(cToken => cToken.address === cTokenAddress);
-    const contract = new web3.eth.Contract(ERC20.abi, cToken.underlyingAddress);
-
-    try {
-        const balance = await contract.methods.balanceOf(accountAddress).call();
-        console.log("Account " + accountAddress + " has balance of " + balance);
-
-        return balance;
-    } catch (error) {
-        console.error(error);
-    }
-}
 
 /**
  * Takes as input a cToken address and an amount. Return that amount adjusted to the number of decimals specified by the underlying token.
@@ -124,10 +63,11 @@ function adjustRepayAmountToSupply(supplyInEth, borrowInEth, closeFactor, incent
  * @param repayAmount           amount (no adjusted decimals) we want to adjust
  * @returns                     max amount (adjusted decimals) that fits into the balance AND balance
  */
-async function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount) {
-    const balance = await getBalanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
-    console.log("Balance is " + balance);
+function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount, balances) {
+    //const balance = await getBalanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
+    //console.log("Balance is " + balance);
 
+    const balance = balances.get(borrowedAssetAddress);
     let repayAmountAdjustedDecimals = adjustUnderlyingDecimals(borrowedAssetAddress, repayAmount);
 
     if (repayAmountAdjustedDecimals > 0.9 * balance) repayAmountAdjustedDecimals = 0.9 * balance;
@@ -144,13 +84,13 @@ async function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount) {
  * @param incentive
  * @returns             json with the liquidation details
  */
-async function getLiquidationDetails(account, closeFactor, incentive) {
+function getLiquidationDetails(account, balances, closeFactor, incentive) {
     const borrowerAddress = account.address;
     const borrowedAssetAddress = account.maxBorrowAddress;
     const collateralAddress = account.maxSupplyAddress;
 
     const repayAmount = adjustRepayAmountToSupply(account.maxSupplyInEth, account.maxBorrowInEth, closeFactor, incentive);
-    const repayAmountAdjusted = await adjustRepayAmountToBalance(account.maxBorrowAddress, repayAmount);
+    const repayAmountAdjusted = adjustRepayAmountToBalance(account.maxBorrowAddress, repayAmount, balances);
 
     return {
         borrowerAddress: borrowerAddress,
@@ -193,27 +133,23 @@ function getProfitInEth(repayTokenAddress, repayAmount, cTokenList, incentive, g
  * @param app       app with the close factor and the incentive in its state
  * @param account   address of the account we want to liquidate
  */
-async function liquidateAccount(app, account) {
+function liquidateAccount(app, account) {
     const gasFeesInEth = BigNumber(app.state.gasPrices[3]).multipliedBy(BigNumber(GasCosts.liquidateBorrow)).dividedBy(BigNumber(10).exponentiatedBy(9)).toFixed();
 
-    const { borrowerAddress, borrowedAssetAddress, repayAmount, repayAmountAdjusted, collateralAddress }
-        = await getLiquidationDetails(account, app.state.closeFactor, app.state.incentive);
+    const liquidationDetails = getLiquidationDetails(account, app.balances, app.state.closeFactor, app.state.incentive);
 
-    console.log("borrowerAddress: " + borrowerAddress);
-    console.log("borrowedAssetAddress: " + borrowedAssetAddress);
-    console.log("repayAmountAdjusted: " + repayAmountAdjusted);
-    console.log("collateralAddress: " + collateralAddress);
-    console.log("gasFees: " + gasFeesInEth);
+    console.log(JSON.stringify(liquidationDetails));
 
-    if (getProfitInEth(borrowedAssetAddress, repayAmount, app.state.cTokens, app.state.incentive, gasFeesInEth) <= 0) {
+    if (getProfitInEth(liquidationDetails.borrowedAssetAddress, liquidationDetails.repayAmount, app.state.cTokens, app.state.incentive, gasFeesInEth) <= 0) {
         console.log("Not profiteable");
         return;
     }
 
-    const allowance = await getAllowanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
+    const allowance = app.allowances.get(liquidationDetails.borrowedAssetAddress);
+    console.log("ALLOWANCE LOKO: " + allowance);
 
     //TODO: add gasFees (have to convert first tokens first)
-    if (allowance < repayAmountAdjusted) {
+    if (allowance < liquidationDetails.repayAmountAdjusted) {
         console.log("Insufficient allowance");
     } else {
         console.log("                        ");
@@ -223,8 +159,6 @@ async function liquidateAccount(app, account) {
         console.log("________________________");
         console.log("________________________");
         console.log("                        ");
-
-        //executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmountAdjusted, collateralAddress, gasPrice);
     }
 }
 
