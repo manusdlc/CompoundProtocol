@@ -7,14 +7,16 @@ import Web3 from "web3";
 
 const web3 = new Web3("http://192.168.1.2:8545");
 
-async function lookForLiquidations(accountList, app) {
+function lookForLiquidations(accountList, app) {
     app.refreshGasPrices();
     const gasFees = (app.state.gasPrices[3] * GasCosts.liquidateBorrow) / 1e9;
     console.log("GAS FEES: " + gasFees);
 
     let i = 0;
+    let stopFlag = 1;
     for (const account of accountList) {
-        if (account.maxProfitInEth > 0 && account.health < 1) await liquidateAccount(app, account);
+        if (account.maxProfitInEth > 0 && account.health < 1) stopFlag = liquidateAccount(app, account);
+        if(stopFlag === -1) break;
 
         console.log("ACCOUNT NO " + i);
         i++;
@@ -23,7 +25,7 @@ async function lookForLiquidations(accountList, app) {
 export default lookForLiquidations;
 
 /**
- * Takes as input a cToken address and an amount. Return that amount adjusted to the number of decimals specified by the underlying token.
+ * Takes cToken and amount as input. Returns that amount adjusted to the number of decimals specified by the underlying token.
  * 
  * @param cTokenAddress 
  * @param amount 
@@ -36,6 +38,22 @@ function adjustUnderlyingDecimals(cTokenAddress, amount) {
     console.log("Adjusted decimals: " + amountDecimals);
 
     return amountDecimals;
+}
+
+/**
+ * Takes cToken and amount as input. Returns that amount unadjusted to the number of decimals specified by the underlying token.
+ * 
+ * @param cTokenAddress 
+ * @param amountDecimals 
+ * @returns                amount unadjusted to the number of decimals specified by the underlying token
+ */
+function unadjustUnderlyingDecimals(cTokenAddress, amountDecimals) {
+    const underlyingDecimals = cTokens.find(cToken => cToken.address === cTokenAddress).underlyingDecimals;
+    const amount = new BigNumber(amountDecimals).dividedBy(BigNumber(10).exponentiatedBy(underlyingDecimals)).toFixed();
+
+    console.log("Unadjusted decimals: " + amount);
+
+    return amount;
 }
 
 /**
@@ -64,9 +82,6 @@ function adjustRepayAmountToSupply(supplyInEth, borrowInEth, closeFactor, incent
  * @returns                     max amount (adjusted decimals) that fits into the balance AND balance
  */
 function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount, balances) {
-    //const balance = await getBalanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
-    //console.log("Balance is " + balance);
-
     const balance = balances.get(borrowedAssetAddress);
     let repayAmountAdjustedDecimals = adjustUnderlyingDecimals(borrowedAssetAddress, repayAmount);
 
@@ -119,7 +134,7 @@ function getProfitInEth(repayTokenAddress, repayAmount, cTokenList, incentive, g
     console.log("Underlying: " + underlyingPriceInEth);
 
     const profit = BigNumber(repayAmount).multipliedBy(BigNumber(underlyingPriceInEth)).multipliedBy(BigNumber(incentive - 1)).minus(BigNumber(gasFeesInEth)).toFixed();
-    console.log("Profit : " + profit);
+    console.log("Profit: " + profit);
 
     return profit;
 }
@@ -140,17 +155,21 @@ function liquidateAccount(app, account) {
 
     console.log(JSON.stringify(liquidationDetails));
 
-    if (getProfitInEth(liquidationDetails.borrowedAssetAddress, liquidationDetails.repayAmount, app.state.cTokens, app.state.incentive, gasFeesInEth) <= 0) {
-        console.log("Not profiteable");
-        return;
+    if (getProfitInEth(liquidationDetails.borrowedAssetAddress,
+        unadjustUnderlyingDecimals(liquidationDetails.borrowedAssetAddress, liquidationDetails.repayAmountAdjusted),
+        app.state.cTokens, app.state.incentive, gasFeesInEth) <= 0) {
+        console.log("Not profitable");
+        return -1;
     }
 
     const allowance = app.allowances.get(liquidationDetails.borrowedAssetAddress);
-    console.log("ALLOWANCE LOKO: " + allowance);
+    console.log("ALLOWANCE TESTING: " + allowance);
 
     //TODO: add gasFees (have to convert first tokens first)
     if (allowance < liquidationDetails.repayAmountAdjusted) {
         console.log("Insufficient allowance");
+        
+        return 1;
     } else {
         console.log("                        ");
         console.log("________________________");
@@ -159,6 +178,8 @@ function liquidateAccount(app, account) {
         console.log("________________________");
         console.log("________________________");
         console.log("                        ");
+
+        return 1;
     }
 }
 

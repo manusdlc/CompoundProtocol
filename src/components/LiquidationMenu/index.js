@@ -1,10 +1,10 @@
 import GasCosts from "../../CompoundProtocol/GasCosts.js";
 import cTokens from "../../CompoundProtocol/cTokens.js";
-import ERC20 from "../../CompoundProtocol/ERC20";
+import ERC20 from "../../CompoundProtocol/ERC20.js";
 import Web3 from "web3";
 import BigNumber from "bignumber.js";
 
-export const web3 = new Web3("http://192.168.1.2:8545");
+const web3 = new Web3("http://192.168.1.2:8545");
 
 
 function getERC20Contract(ERC20Address) {
@@ -116,7 +116,7 @@ async function getBalanceOfUnderlyingToken(accountAddress, cTokenAddress) {
         try {
             const balance = await web3.eth.getBalance(accountAddress);
             console.log("Account " + accountAddress + " has balance of " + balance);
-            
+
             return balance
         } catch (error) {
             console.error(error);
@@ -163,7 +163,7 @@ async function liquidateAccount(app) {
     const repayAmount = app.state.repayAmount;
 
     const collateralAddress = app.state.tokenToCollectAddress;
-    const gasPrice = BigNumber(app.state.gasPrices[1]).multipliedBy(BigNumber(10).exponentiatedBy(9)).toFixed();
+    const gasPrice = BigNumber(app.state.gasPrices[3]).multipliedBy(BigNumber(10).exponentiatedBy(9)).toFixed();
 
     console.log("borrowerAddress: " + borrowerAddress);
     console.log("borrowedAssetAddress: " + borrowedAssetAddress);
@@ -174,6 +174,7 @@ async function liquidateAccount(app) {
     const balance = await getBalanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
     const allowance = await getAllowanceOfUnderlyingToken("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", borrowedAssetAddress);
 
+    //TODO adjust decimals to match repayAmount and balance
     if (0.9 * balance < repayAmount) {
         console.log("Insufficient funds");
     } else if (allowance < repayAmount) {
