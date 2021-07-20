@@ -1,6 +1,5 @@
-import cTokens from "/home/robotito/Crypto/compound_liquidator/src/CompoundProtocol/cTokens.js";
-import ERC20 from "/home/robotito/Crypto/compound_liquidator/src/CompoundProtocol/ERC20.js";
-import GasCosts from "/home/robotito/Crypto/compound_liquidator/src/CompoundProtocol/GasCosts.js";
+import cTokens from "cTokens.js";
+import GasCosts from "GasCosts.js";
 //import web3 from "../App.js";
 import BigNumber from "bignumber.js";
 import Web3 from "web3";
@@ -168,7 +167,7 @@ function liquidateAccount(app, account) {
     //TODO: add gasFees (have to convert first tokens first)
     if (allowance < liquidationDetails.repayAmountAdjusted) {
         console.log("Insufficient allowance");
-        
+
         return 1;
     } else {
         console.log("                        ");

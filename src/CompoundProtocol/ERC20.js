@@ -222,5 +222,4 @@ const ERC20 = {
         }
     ]
 }
-
 export default ERC20;
