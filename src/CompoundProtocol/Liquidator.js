@@ -1,5 +1,5 @@
-import cTokens from "cTokens.js";
-import GasCosts from "GasCosts.js";
+import cTokens from "./cTokens.js";
+import GasCosts from "./GasCosts.js";
 //import web3 from "../App.js";
 import BigNumber from "bignumber.js";
 import Web3 from "web3";
