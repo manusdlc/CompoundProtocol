@@ -34,6 +34,10 @@ const accountRequestData = {
   min_borrow_value_in_eth: { value: "0.001" },
   page_size: 500
 };
+const binanceURL = "https://api.binance.com/api/v3/avgPrice ";
+const binanceRequestData = {
+  symbol: "ETH"
+};
 
 function parseGasResponse(json) {
   console.log("SafeLow: " + json.data.safeLow / 10);
@@ -204,6 +208,7 @@ class App extends Component {
     this.getBalanceOfUnderlyingToken = this.getBalanceOfUnderlyingToken.bind(this);
     this.refreshBalances = this.refreshBalances.bind(this);
     this.refreshEthToUsd = this.refreshEthToUsd.bind(this);
+    this.refreshPrices = this.refreshPrices.bind(this);
     this.refreshCloseFactor = this.refreshCloseFactor.bind(this);
     this.refreshIncentive = this.refreshIncentive.bind(this);
     this.refreshGasPrices = this.refreshGasPrices.bind(this);
@@ -220,7 +225,7 @@ class App extends Component {
     this.refreshBalances();
     this.refreshAllowances();
 
-    setInterval(this.refreshAccountList, 2000);
+    setInterval(this.refreshAccountList, 1000);
   }
 
   /**
@@ -241,7 +246,7 @@ class App extends Component {
 
     try {
       const allowance = await contract.methods.allowance("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", cTokenAddress).call();
-      console.log("Account 0x5cf30c7fe084be043570b6d4f81dd7132ab3b036 has allowance of " + allowance);
+      console.log("Account has allowance of " + allowance + " " + cToken.name.substring(1));
 
       return allowance;
     } catch (error) {
@@ -314,6 +319,15 @@ class App extends Component {
       this.setState({
         ethToUsd: ethToUsd
       })
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async refreshPrices() {
+    try {
+      const binanceDataResponse = await axios.get(binanceURL, binanceRequestData);
+      console.log(binanceDataResponse);
     } catch (error) {
       console.error(error);
     }
@@ -428,7 +442,7 @@ class App extends Component {
       return (
         <div className="App">
           <Header app={this} />
-          <button onClick={() => this.setState({ displayTokens: true })}> See cTokens</button>
+          <button onClick={() => this.setState({ displayTokens: true })}> See cTokens </button>
           <button style={{ float: "right" }} onClick={() => this.refreshcTokenAndAccountList()}> Refresh </button>
           <AccountsTable accounts={this.state.accounts} app={this} ethToUsd={this.state.ethToUsd} />
         </div>
@@ -436,7 +450,7 @@ class App extends Component {
     } else {
       return (
         <div className="App">
-          <button onClick={() => this.setState({ displayTokens: false })}> See accounts</button>
+          <button onClick={() => this.setState({ displayTokens: false })}> See accounts </button>
           <button style={{ float: "right" }} onClick={this.refreshTokenList}> Refresh </button>
           <TokensTable cTokens={this.state.cTokens} />
         </div>
