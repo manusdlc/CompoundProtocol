@@ -53,7 +53,7 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
     const repayAmountDecimals = adjustUnderlyingDecimals(borrowedAssetAddress, repayAmount);
 
     try {
-        await web3.eth.personal.unlockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", "$account_password")
+        await web3.eth.personal.unlockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036", $account_password)
             .then(console.log("Account unlocked!"));
 
         //Check if the borrowed asset is cETH
