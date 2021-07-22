@@ -6,7 +6,7 @@ import Web3 from "web3";
 
 const web3 = new Web3("http://192.168.1.2:8545");
 
-function lookForLiquidations(accountList, app) {
+async function lookForLiquidations(accountList, app) {
     app.refreshGasPrices();
     const gasFees = (app.state.gasPrices[3] * GasCosts.liquidateBorrow) / 1e9;
     console.log("GAS FEES: " + gasFees);
@@ -14,8 +14,8 @@ function lookForLiquidations(accountList, app) {
     let i = 0;
     let stopFlag = 1;
     for (const account of accountList) {
-        if (account.maxProfitInEth > 0 && account.health < 1) stopFlag = liquidateAccount(app, account);
-        if(stopFlag === -1) break;
+        if (account.maxProfitInEth > 0 && account.health < 1) stopFlag = await liquidateAccount(app, account);
+        if (stopFlag === -1) break;
 
         console.log("ACCOUNT NO " + i);
         i++;
@@ -65,11 +65,10 @@ function unadjustUnderlyingDecimals(cTokenAddress, amountDecimals) {
  * @returns             max liquidable amount
  */
 function adjustRepayAmountToSupply(supplyInEth, borrowInEth, closeFactor, incentive) {
-    let maxLiquidableAmount = borrowInEth * closeFactor;
+    let maxLiquidableAmountInEth = borrowInEth * closeFactor;
 
-    if (maxLiquidableAmount * incentive > supplyInEth) maxLiquidableAmount = supplyInEth / incentive;
-
-    return maxLiquidableAmount;
+    if (maxLiquidableAmountInEth * incentive > supplyInEth) maxLiquidableAmountInEth = supplyInEth / incentive;
+    return maxLiquidableAmountInEth;
 }
 
 /**
@@ -78,7 +77,7 @@ function adjustRepayAmountToSupply(supplyInEth, borrowInEth, closeFactor, incent
  * 
  * @param borrowedAssetAddress  address of the token from which we are getting the balance
  * @param repayAmount           amount (no adjusted decimals) we want to adjust
- * @returns                     max amount (adjusted decimals) that fits into the balance AND balance
+ * @returns                     max amount (adjusted decimals) that fits into the balance
  */
 function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount, balances) {
     const balance = balances.get(borrowedAssetAddress);
@@ -90,6 +89,21 @@ function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount, balances)
 }
 
 /**
+ * Takes amount in ETH and address as input. Returns same amount converted into the corresponding token's value.
+ * 
+ * @param amountInEth 
+ * @param tokenAddress 
+ * @param cTokenList 
+ * @returns 
+ */
+ function convertEthToToken(amountInEth, tokenAddress, cTokenList) {
+    const token = cTokenList.find(cToken => cToken.address === tokenAddress);
+
+    const amount = BigNumber(amountInEth).dividedBy(BigNumber(token.underlyingPriceInEth));
+    return amount;
+}
+
+/**
  * Takes an account that we want to liquidate as input. Retrieves the data needed for the liquidation such as addresses and amounts,
  * taking into account the close factor and the incentive. Returns this data as a json.
  * 
@@ -98,18 +112,18 @@ function adjustRepayAmountToBalance(borrowedAssetAddress, repayAmount, balances)
  * @param incentive
  * @returns             json with the liquidation details
  */
-function getLiquidationDetails(account, balances, closeFactor, incentive) {
+function getLiquidationDetails(account, balances, closeFactor, incentive, cTokenList) {
     const borrowerAddress = account.address;
     const borrowedAssetAddress = account.maxBorrowAddress;
     const collateralAddress = account.maxSupplyAddress;
 
-    const repayAmount = adjustRepayAmountToSupply(account.maxSupplyInEth, account.maxBorrowInEth, closeFactor, incentive);
+    const repayAmountInEth = adjustRepayAmountToSupply(account.maxSupplyInEth, account.maxBorrowInEth, account.maxBorrowAddress, closeFactor, incentive);
+    const repayAmount = convertEthToToken(repayAmountInEth, borrowedAssetAddress, cTokenList);
     const repayAmountAdjusted = adjustRepayAmountToBalance(account.maxBorrowAddress, repayAmount, balances);
 
     return {
         borrowerAddress: borrowerAddress,
         borrowedAssetAddress: borrowedAssetAddress,
-        repayAmount: repayAmount,
         repayAmountAdjusted: repayAmountAdjusted,
         collateralAddress: collateralAddress
     }
@@ -147,25 +161,29 @@ function getProfitInEth(repayTokenAddress, repayAmount, cTokenList, incentive, g
  * @param app       app with the close factor and the incentive in its state
  * @param account   address of the account we want to liquidate
  */
-function liquidateAccount(app, account) {
+async function liquidateAccount(app, account) {
     const gasFeesInEth = BigNumber(app.state.gasPrices[3]).multipliedBy(BigNumber(GasCosts.liquidateBorrow)).dividedBy(BigNumber(10).exponentiatedBy(9)).toFixed();
 
-    const liquidationDetails = getLiquidationDetails(account, app.balances, app.state.closeFactor, app.state.incentive);
+    const { borrowerAddress,
+        borrowedAssetAddress,
+        repayAmountAdjusted,
+        collateralAddress } = getLiquidationDetails(account, app.balances, app.state.closeFactor, app.state.incentive, app.cTokens);
 
-    console.log(JSON.stringify(liquidationDetails));
-
-    if (getProfitInEth(liquidationDetails.borrowedAssetAddress,
-        unadjustUnderlyingDecimals(liquidationDetails.borrowedAssetAddress, liquidationDetails.repayAmountAdjusted),
+    if (getProfitInEth(borrowedAssetAddress,
+        unadjustUnderlyingDecimals(borrowedAssetAddress, repayAmountAdjusted),
         app.state.cTokens, app.state.incentive, gasFeesInEth) <= 0) {
         console.log("Not profitable");
+
         return -1;
     }
 
-    const allowance = app.allowances.get(liquidationDetails.borrowedAssetAddress);
+    const allowance = app.allowances.get(borrowedAssetAddress);
     console.log("ALLOWANCE TESTING: " + allowance);
 
-    //TODO: add gasFees (have to convert first tokens first)
-    if (allowance < liquidationDetails.repayAmountAdjusted) {
+    if (app.isBlocked) {
+        return 1;
+    }
+    if (allowance < repayAmountAdjusted) {
         console.log("Insufficient allowance");
 
         return 1;
@@ -178,6 +196,9 @@ function liquidateAccount(app, account) {
         console.log("________________________");
         console.log("                        ");
 
+        app.isBlocked = true;
+        //await executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmountAdjusted, collateralAddress, gasFees, app);
+
         return 1;
     }
 }
@@ -189,7 +210,7 @@ function getcTokenContract(cTokenAddress) {
     return cTokenContract;
 }
 
-async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmountAdjusted, collateralAddress, gasPrice) {
+async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAmountAdjusted, collateralAddress, gasPrice, app) {
     const contract = new getcTokenContract(borrowedAssetAddress);
 
     try {
@@ -244,6 +265,7 @@ async function executeLiquidation(borrowerAddress, borrowedAssetAddress, repayAm
 
     } finally {
 
+        app.isBlocked = false;
         await web3.eth.personal.lockAccount("0x5cf30c7fe084be043570b6d4f81dd7132ab3b036")
             .then(console.log("Account locked!"));
 
