@@ -8,13 +8,11 @@ import Comptroller from "./CompoundProtocol/Comptroller.js";
 import cTokens from "./CompoundProtocol/cTokens.js";
 import GasCosts from "./CompoundProtocol/GasCosts.js";
 import OldcTokens from "./CompoundProtocol/OldcTokens.js";
-import OpenPriceFeed from "./CompoundProtocol/OpenPriceFeed.js";
+import UniswapAnchoredView from "./CompoundProtocol/UniswapAnchoredView.js";
 import ERC20 from "./CompoundProtocol/ERC20.js";
 import lookForLiquidations from "./CompoundProtocol/Liquidator.js";
 import axios from "axios";
 import Web3 from "web3";
-
-//console.log(process.env.MYACCOUNT_ADDRESS);
 
 // /home/robotito/Crypto/compound_liquidator/.env
 //const result = require("dotenv").config({ path: "/home/robotito/Crypto/compound_liquidator/.env" });
@@ -23,7 +21,8 @@ import Web3 from "web3";
 export const web3 = new Web3("http://192.168.1.2:8545");
 //export const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/63bb2d03b65543a1bb50ed173d2c1966"));
 export const troll = new web3.eth.Contract(Comptroller.abi, Comptroller.address);
-export const priceFeed = new web3.eth.Contract(OpenPriceFeed.abi, OpenPriceFeed.address);
+export const UniswapAnchoredViewContract = new web3.eth.Contract(UniswapAnchoredView.abi, UniswapAnchoredView.address);
+const ETHValidatorProxy = "0x264BDDFD9D93D48d759FBDB0670bE1C6fDd50236";
 
 
 const gasURL = "https://ethgasstation.info/api/ethgasAPI.json?api-key=ba3b8b16c8236248538879ebba23562f288a4f93965d58d90b534b2ea44a";
@@ -34,6 +33,7 @@ const accountRequestData = {
   min_borrow_value_in_eth: { value: "0.001" },
   page_size: 500
 };
+
 const binanceURL = "https://api.binance.com/api/v3/avgPrice ";
 const binanceRequestData = {
   symbol: "ETH"
@@ -179,8 +179,12 @@ class App extends Component {
 
     this.web3 = web3;
 
+    this.isBlocked = false;
+
     this.balances = new Map();
     this.allowances = new Map();
+
+    this.cTokens = [];
 
     this.state = {
       displayTokens: false,
@@ -225,7 +229,7 @@ class App extends Component {
     this.refreshBalances();
     this.refreshAllowances();
 
-    setInterval(this.refreshAccountList, 1000);
+    setInterval(this.refreshAccountList, 2000);
   }
 
   /**
@@ -313,11 +317,16 @@ class App extends Component {
 
   async refreshEthToUsd() {
     try {
-      const ethToUsd = await priceFeed.methods.getUnderlyingPrice("0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5").call() / 1e18;
-      console.log(ethToUsd);
+      //const view = UniswapAnchoredViewContract.at(ETHValidatorProxy);
+      //const price = await view.methods.price("ETH").call();
+      //console.log(price);
+//
+      //this.setState({
+      //  ethToUsd: price
+      //})
 
       this.setState({
-        ethToUsd: ethToUsd
+        ethToUsd: 2000
       })
     } catch (error) {
       console.error(error);
@@ -340,7 +349,7 @@ class App extends Component {
 
       this.setState({
         closeFactor: closeFactor
-      })
+      });
     } catch (error) {
       console.error(error);
     }
@@ -354,7 +363,7 @@ class App extends Component {
 
       this.setState({
         incentive: incentive
-      })
+      });
     } catch (error) {
       console.error(error);
     }
@@ -367,7 +376,7 @@ class App extends Component {
 
       this.setState({
         gasPrices: gasPrices
-      })
+      });
     } catch (error) {
       console.error(error);
     }
@@ -375,12 +384,12 @@ class App extends Component {
 
   async refreshAccountList() {
     try {
-      if (typeof this.state.cTokens === "undefined") {
+      if (typeof this.cTokens === "undefined") {
         console.log("cToken list is empty");
         return;
       }
 
-      const cTokenList = this.state.cTokens;
+      const cTokenList = this.cTokens;
 
       console.log("Refreshing account list");
       const accountDataResponse = await axios.post(accountURL, accountRequestData);
@@ -408,6 +417,8 @@ class App extends Component {
       console.log("Refreshing account list")
       const accountDataResponse = await axios.post(accountURL, accountRequestData);
       const accountList = parseAccountDataResponse(accountDataResponse, this, cTokenList);
+
+      this.cTokens = cTokenList;
 
       this.setState({
         cTokens: cTokenList,
